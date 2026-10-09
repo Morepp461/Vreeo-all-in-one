@@ -12,7 +12,7 @@ The active bootstrap branch now includes:
 - Encrypted OAuth access/refresh token storage and refresh support for manageable-server discovery.
 - PostgreSQL/Prisma schema and versioned migrations.
 - API liveness/readiness endpoints and consistent error responses.
-- A Discord slash-command registry, command deployment script, server/user utilities, polls, initial moderation commands (`/warn`, `/timeout`, `/kick`, `/ban`) with permission checks and case/audit records, native keyword AutoMod management, and a database-backed private ticket workflow (`/ticket setup|open|claim|close|reopen|list`).
+- A Discord slash-command registry, command deployment script, server/user utilities, polls, initial moderation commands (`/warn`, `/timeout`, `/kick`, `/ban`) with permission checks and case/audit records, native keyword AutoMod management, a database-backed private ticket workflow (`/ticket setup|panel|open|claim|close|reopen|list`), and persistent Discord ticket panels.
 - A dashboard login screen, account session state, manageable-server listing, and responsive workspace shell.
 - CI checks for formatting, linting, types, tests, build, and applying migrations to a clean PostgreSQL database.
 

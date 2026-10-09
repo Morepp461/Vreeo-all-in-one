@@ -9,9 +9,9 @@
     "pnpm": ">=10.0.0"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @vreeo/api --filter @vreeo/bot --filter @vreeo/dashboard dev",
+    "dev": "pnpm --filter @vreeo/database build && pnpm --parallel --filter @vreeo/api --filter @vreeo/bot --filter @vreeo/dashboard dev",
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm --filter @vreeo/database build && pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
     "test": "pnpm -r --if-present test",
     "format": "prettier --write .",

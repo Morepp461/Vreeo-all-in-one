@@ -156,9 +156,8 @@ export async function syncGuildMember(member: GuildMember, database: DatabaseCli
   });
 }
 
-export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseClient, internalGuildId: string, snapshot: readonly GuildMember[]): Promise<number> {
+export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseClient, internalGuildId: string, snapshot: readonly GuildMember[], snapshotStartedAt: Date): Promise<number> {
   const members = [...snapshot];
-  const snapshotStartedAt = new Date();
   const memberIds = members.map((member) => member.id);
   const knownUsers: Array<{ id: string; discordUserId: string }> = [];
   for (let offset = 0; offset < memberIds.length; offset += 500) {
@@ -222,6 +221,7 @@ export async function syncGuildSnapshot(guild: Guild, database: DatabaseClient):
   const guildId = await syncGuildMetadata(guild, database);
   await syncGuildRoles(guild, database, guildId);
   await syncGuildChannels(guild, database, guildId);
+  const snapshotStartedAt = new Date();
   let snapshot: GuildMember[];
   try {
     // GuildMembers is a privileged Discord intent. Basic guild metadata remains useful if it is unavailable.
@@ -229,6 +229,6 @@ export async function syncGuildSnapshot(guild: Guild, database: DatabaseClient):
   } catch {
     return { guildId, memberCount: null };
   }
-  const memberCount = await syncGuildMemberSnapshot(guild, database, guildId, snapshot);
+  const memberCount = await syncGuildMemberSnapshot(guild, database, guildId, snapshot, snapshotStartedAt);
   return { guildId, memberCount };
 }

@@ -35,6 +35,12 @@ describe("environment configuration", () => {
     })).not.toThrow();
   });
 
+  it("requires the database URL for production bot registry sync", () => {
+    expect(loadBotConfig({ DISCORD_TOKEN: "test-token" }).databaseUrl).toContain("postgresql://");
+    expect(() => loadBotConfig({ NODE_ENV: "production", DISCORD_TOKEN: "test-token" })).toThrow(/DATABASE_URL/);
+    expect(() => loadBotConfig({ NODE_ENV: "production", DATABASE_URL: localApiEnvironment.DATABASE_URL, DISCORD_TOKEN: "test-token" })).not.toThrow();
+  });
+
   it("requires a non-empty bot token", () => {
     expect(() => loadBotConfig({ DISCORD_TOKEN: "" })).toThrow(/DISCORD_TOKEN/);
   });

@@ -35,6 +35,18 @@ describe("API server", () => {
     expect(response.json().error.requestId).toBeTruthy();
   });
 
+  it("does not trust malformed caller-supplied request IDs", async () => {
+    app = await buildServer({ loggerOptions: { level: "silent" } });
+    const response = await app.inject({
+      method: "GET",
+      url: "/missing",
+      headers: { "x-request-id": "client supplied id" },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.requestId).not.toBe("client supplied id");
+    expect(response.json().error.requestId).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
   it("fails readiness without leaking dependency errors", async () => {
     app = await buildServer({
       loggerOptions: { level: "silent" },

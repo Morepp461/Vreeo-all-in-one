@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { createLoggerOptions } from "@vreeo/logger";
@@ -28,7 +29,13 @@ function errorCode(statusCode: number): string {
 export async function buildServer(options: BuildServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: options.loggerOptions ?? createLoggerOptions({ service: "api" }),
-    requestIdHeader: "x-request-id",
+    requestIdHeader: false,
+    genReqId: (request) => {
+      const supplied = request.headers["x-request-id"];
+      return typeof supplied === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(supplied)
+        ? supplied
+        : randomUUID();
+    },
     requestIdLogLabel: "requestId",
     trustProxy: false,
     bodyLimit: 1_048_576,
@@ -71,18 +78,19 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
     });
   });
 
-  app.get("/health", async () => ({
+  app.get("/health", { config: { rateLimit: false } }, async () => ({
     status: "ok",
     service: "api",
     version: process.env.npm_package_version ?? "0.1.0",
   }));
 
-  app.get("/health/ready", async (_request, reply) => {
+  app.get("/health/ready", { config: { rateLimit: false } }, async (request, reply) => {
     const checks = await Promise.all(readinessChecks.map(async ({ name, check }) => {
       try {
         await check();
         return { name, status: "ok" as const };
       } catch {
+        request.log.warn({ dependency: name }, "Readiness dependency check failed");
         return { name, status: "unavailable" as const };
       }
     }));

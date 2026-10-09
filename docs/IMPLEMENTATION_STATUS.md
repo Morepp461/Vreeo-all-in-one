@@ -2,7 +2,7 @@
 
 ## Current stage: tenant-scoped guild context
 
-This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
+This branch extends the auth/session, guild-access, and bot-sync foundations. It is not a production release and has not been merged into `main`.
 
 ### Implemented foundations
 
@@ -20,7 +20,7 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Action-specific VREEO permission/profile and entitlement policy loaders.
 - Database-backed permission/profile and entitlement policy loaders.
 - Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
-- OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
+- OAuth access tokens are used only during callback and are not persisted. Guild access is revalidated against the bot-synced membership/role snapshot; correctness depends on successful Gateway synchronization.
 
 ### Verification
 
@@ -30,7 +30,6 @@ Infrastructure and shared package gates previously passed. The auth/session bran
 
 1. Verify auth state-cookie binding, callback replay protection, session hash storage, logout CSRF checks, and session listing.
 2. Attach the tenant guard to every guild-scoped route as those routes are implemented.
-3. Wire permission and entitlement packages to database-backed policy loaders.
 3. Wire permission and entitlement packages to database-backed policy loaders.
 4. Add bot command registry and interaction/event routers.
 5. Implement Moderation Warn end-to-end and expand the remaining MVP features.

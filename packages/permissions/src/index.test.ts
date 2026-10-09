@@ -14,6 +14,7 @@ const permission: PermissionKey = "moderation.warn";
 function evaluate(overrides: readonly PermissionOverride[], defaultPermissions: readonly PermissionKey[] = []) {
   return evaluatePermission({
     authenticated: true,
+    requestedGuildId: actor.guildId,
     guildAccess: true,
     actor,
     permission,
@@ -38,10 +39,22 @@ const userDeny: PermissionOverride = {
 describe("permission evaluation", () => {
   it("denies before checking permissions when authentication or guild access is absent", () => {
     expect(evaluatePermission({
-      authenticated: false, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: false, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
     })).toEqual({ allowed: false, reasons: ["UNAUTHENTICATED"] });
     expect(evaluatePermission({
-      authenticated: true, guildAccess: false, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: false, actor, permission, overrides: [], defaultPermissions: [permission],
+    })).toEqual({ allowed: false, reasons: ["GUILD_ACCESS_DENIED"] });
+  });
+
+  it("rejects an actor context from a different guild", () => {
+    expect(evaluatePermission({
+      authenticated: true,
+      requestedGuildId: "different-guild",
+      guildAccess: true,
+      actor,
+      permission,
+      overrides: [userAllow],
+      defaultPermissions: [permission],
     })).toEqual({ allowed: false, reasons: ["GUILD_ACCESS_DENIED"] });
   });
 
@@ -56,7 +69,7 @@ describe("permission evaluation", () => {
 
   it("requires Discord capabilities and bot hierarchy when supplied", () => {
     expect(evaluatePermission({
-      authenticated: true, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
       discord: { requiredPermissions: ["BanMembers"], grantedPermissions: [] },
     })).toEqual({ allowed: false, reasons: ["MISSING_DISCORD_PERMISSION"] });
     expect(evaluatePermission({

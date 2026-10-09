@@ -30,6 +30,8 @@ export interface DiscordPermissionContext {
 
 export interface EvaluatePermissionInput {
   authenticated: boolean;
+  /** Server-resolved guild context; never copy this from an unvalidated client field. */
+  requestedGuildId: string;
   guildAccess: boolean;
   actor: ActorContext;
   permission: PermissionKey;
@@ -70,7 +72,9 @@ function resolveOverride(
  */
 export function evaluatePermission(input: EvaluatePermissionInput): AuthorizationResult {
   if (!input.authenticated) return { allowed: false, reasons: ["UNAUTHENTICATED"] };
-  if (!input.guildAccess) return { allowed: false, reasons: ["GUILD_ACCESS_DENIED"] };
+  if (!input.guildAccess || input.actor.guildId !== input.requestedGuildId) {
+    return { allowed: false, reasons: ["GUILD_ACCESS_DENIED"] };
+  }
 
   const reasons: AuthorizationResult["reasons"] = [];
   if (input.discord) {

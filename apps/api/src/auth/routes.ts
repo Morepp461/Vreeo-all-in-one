@@ -97,7 +97,13 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     if (!query.code) {
-      return sendApiError(reply, request.id, 400, 'VALIDATION_ERROR', 'Discord did not return an authorization code.');
+      return sendApiError(
+        reply,
+        request.id,
+        400,
+        'VALIDATION_ERROR',
+        'Discord did not return an authorization code.',
+      );
     }
 
     let config;
@@ -154,7 +160,10 @@ export async function authRoutes(app: FastifyInstance) {
       });
 
       if (existingAccount && existingAccount.userId !== user.id) {
-        request.log.error({ discordUserId: discordUser.id }, 'OAuth account linkage invariant failed');
+        request.log.error(
+          { discordUserId: discordUser.id },
+          'OAuth account linkage invariant failed',
+        );
         return sendApiError(
           reply,
           request.id,
@@ -182,11 +191,7 @@ export async function authRoutes(app: FastifyInstance) {
 
       const rawSessionToken = createOpaqueToken();
       await createSession(user.id, rawSessionToken, config.sessionSecret, config.sessionTtlSeconds);
-      reply.setCookie(
-        sessionCookieName,
-        rawSessionToken,
-        cookieOptions(config.sessionTtlSeconds),
-      );
+      reply.setCookie(sessionCookieName, rawSessionToken, cookieOptions(config.sessionTtlSeconds));
       reply.header('Cache-Control', 'no-store');
       return reply.redirect(config.webOrigin);
     } catch (error) {
@@ -224,7 +229,13 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.post('/auth/logout', async (request, reply) => {
     if (request.headers.origin !== env.WEB_ORIGIN) {
-      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+      return sendApiError(
+        reply,
+        request.id,
+        403,
+        'CSRF_INVALID',
+        'Request origin could not be verified.',
+      );
     }
 
     await revokeSession(request.cookies?.[sessionCookieName], env.SESSION_SECRET);
@@ -270,7 +281,13 @@ export async function authRoutes(app: FastifyInstance) {
 
     const params = z.object({ sessionId: z.string().uuid() }).safeParse(request.params);
     if (!params.success) {
-      return sendApiError(reply, request.id, 400, 'VALIDATION_ERROR', 'A valid session ID is required.');
+      return sendApiError(
+        reply,
+        request.id,
+        400,
+        'VALIDATION_ERROR',
+        'A valid session ID is required.',
+      );
     }
 
     const result = await prisma.session.updateMany({

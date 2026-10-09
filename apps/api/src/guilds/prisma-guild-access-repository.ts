@@ -47,20 +47,35 @@ export class PrismaGuildAccessRepository implements GuildAccessRepository {
       orderBy: { name: "asc" },
     });
 
-    return guilds.flatMap((guild) => {
+    const accessible: AccessibleGuild[] = [];
+    for (const guild of guilds) {
       // Repeat critical eligibility checks in application code rather than trusting a loose query/mock.
-      if (!guild.active || guild.botJoinedAt === null) return [];
+      if (!guild.active || guild.botJoinedAt === null) continue;
       if (guild.ownerDiscordUserId === discordUserId) {
-        return [{ id: guild.id, discordGuildId: guild.discordGuildId, name: guild.name, iconUrl: guild.iconUrl, accessLevel: "owner" as const }];
+        accessible.push({
+          id: guild.id,
+          discordGuildId: guild.discordGuildId,
+          name: guild.name,
+          iconUrl: guild.iconUrl,
+          accessLevel: "owner",
+        });
+        continue;
       }
       const member = guild.members[0];
-      if (!member || !member.roles.length) return [];
+      if (!member || member.roles.length === 0) continue;
       const assignedRoleIds = new Set(member.roles.map((role) => role.discordRoleId));
       const rolePermissions = guild.roles
         .filter((role) => assignedRoleIds.has(role.discordRoleId))
         .map((role) => role.permissions);
-      if (!hasManageGuildPermission(rolePermissions)) return [];
-      return [{ id: guild.id, discordGuildId: guild.discordGuildId, name: guild.name, iconUrl: guild.iconUrl, accessLevel: "manage_guild" as const }];
-    });
+      if (!hasManageGuildPermission(rolePermissions)) continue;
+      accessible.push({
+        id: guild.id,
+        discordGuildId: guild.discordGuildId,
+        name: guild.name,
+        iconUrl: guild.iconUrl,
+        accessLevel: "manage_guild",
+      });
+    }
+    return accessible;
   }
 }

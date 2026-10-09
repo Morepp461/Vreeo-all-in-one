@@ -73,7 +73,7 @@ describe("permission evaluation", () => {
       discord: { requiredPermissions: ["BanMembers"], grantedPermissions: [] },
     })).toEqual({ allowed: false, reasons: ["MISSING_DISCORD_PERMISSION"] });
     expect(evaluatePermission({
-      authenticated: true, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
       discord: { requiredPermissions: [], grantedPermissions: [], botHierarchyAllowed: false },
     })).toEqual({ allowed: false, reasons: ["BOT_HIERARCHY_BLOCKED"] });
   });

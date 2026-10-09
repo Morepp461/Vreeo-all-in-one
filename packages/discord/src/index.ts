@@ -62,9 +62,17 @@ export class DiscordRestService {
 export function createDiscordRestTransport(token: string): DiscordRestTransport {
   if (token.trim().length === 0) throw new Error("Discord token must be non-empty");
   const rest = new REST({ version: "10" }).setToken(token);
-  return { async request<T>(method: DiscordRestMethod, route: string, options?: unknown): Promise<T> {
-    return await rest.request(method as never, route as never, options as never) as T;
-  } };
+  return {
+    async request<T>(method: DiscordRestMethod, route: string, options?: unknown): Promise<T> {
+      switch (method) {
+        case "GET": return await rest.get(route as never, options as never) as T;
+        case "POST": return await rest.post(route as never, options as never) as T;
+        case "PUT": return await rest.put(route as never, options as never) as T;
+        case "PATCH": return await rest.patch(route as never, options as never) as T;
+        case "DELETE": return await rest.delete(route as never, options as never) as T;
+      }
+    },
+  };
 }
 export interface BotHierarchyInput { botHighestRolePosition: number; targetHighestRolePosition: number; targetRoleManaged: boolean; }
 export function assertBotHierarchy(input: BotHierarchyInput): void {

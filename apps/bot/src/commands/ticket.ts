@@ -247,7 +247,7 @@ export const ticketCommand: VreeoCommand = {
       try {
         ticket = await prisma.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${guildRecord.id}))`;
-const latest = await tx.ticket.aggregate({
+          const latest = await tx.ticket.aggregate({
             where: { guildId: guildRecord.id },
             _max: { ticketNumber: true },
           });

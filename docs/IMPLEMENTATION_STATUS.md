@@ -23,7 +23,7 @@ This branch builds on `feat/foundation-bootstrap`. It is not a production releas
 - Discord command registry, interaction/event routers, REST abstraction, and command deployment.
 - Authentication, OAuth2, sessions, guild access/context, authorization, and entitlements.
 - Dashboard/admin applications and product features.
-- Dependency lockfile and verified CI/build results.
+- Committed dependency lockfile and verified green CI.
 
 ### Review notes
 
@@ -31,15 +31,17 @@ This branch builds on `feat/foundation-bootstrap`. It is not a production releas
 - The repository currently uses Fastify as the API framework, matching the current README direction. NestJS remains an allowed alternative in the architecture document, not a reason to rewrite the API.
 - The current API readiness check intentionally fails closed until PostgreSQL, Redis, and queue health checks are wired in a later stage.
 - The CI workflow currently allows lockfile generation because no pnpm lockfile exists yet. A committed lockfile and frozen install are required before calling builds reproducible or release-ready.
+- Root development/test/typecheck scripts build shared packages first because app packages resolve their generated package entrypoints.
 
 ### Verification status
 
-Tests have been authored but have not yet been executed in this environment. No dependency installation, typecheck, build, Docker startup, database migration, or live Discord connection has been verified. Do not interpret this branch as runnable or production-ready until CI and integration checks pass.
+GitHub Actions successfully installed the workspace dependencies on the previous CI attempt, then TypeScript checking failed. That failure exposed Fastify logger typing and error narrowing issues; fixes are now committed, but a CI run against the latest commit is still required. Tests, full build, Docker startup, database migrations, and a live Discord connection have not yet been verified. Do not interpret this branch as production-ready.
 
 ### Next sequence
 
-1. Deep-review and implement the database schema/migration foundation against the source database specification.
-2. Add Redis/queue primitives and real readiness checks.
-3. Add the bot command/event lifecycle and API module boundaries.
-4. Add authorization and entitlement foundations before protected feature actions.
-5. Implement the first end-to-end vertical slice: Moderation Warn.
+1. Get the API/bot foundation through green CI and review the actual build/test output.
+2. Deep-review and implement the database schema/migration foundation against the source database specification.
+3. Add Redis/queue primitives and real readiness checks.
+4. Add the bot command/event lifecycle and API module boundaries.
+5. Add authorization and entitlement foundations before protected feature actions.
+6. Implement the first end-to-end vertical slice: Moderation Warn.

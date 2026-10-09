@@ -1,11 +1,12 @@
 import "dotenv/config";
 import { loadApiConfig } from "@vreeo/config";
-import { createLogger } from "@vreeo/logger";
+import { createLogger, createLoggerOptions } from "@vreeo/logger";
 import { buildServer } from "./server.js";
 
 const config = loadApiConfig();
+const loggerOptions = createLoggerOptions({ service: "api", level: config.logLevel });
 const logger = createLogger({ service: "api", level: config.logLevel });
-const app = await buildServer({ logger });
+const app = await buildServer({ loggerOptions });
 
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   logger.info({ signal }, "Shutting down API");

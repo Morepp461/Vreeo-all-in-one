@@ -1,15 +1,19 @@
 import { randomBytes } from 'node:crypto';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '@vreeo/database/client';
 import { env } from '../settings.js';
 import { sendApiError } from '../http/errors.js';
 import { createOpaqueToken, safeEqual } from './crypto.js';
-import { decryptOAuthToken, encryptOAuthToken } from './token-crypto.js';
+import { encryptOAuthToken } from './token-crypto.js';
+import {
+  DiscordAccessError,
+  getDiscordAccessToken,
+  getManageableDiscordGuilds,
+} from './discord-access.js';
 import { AuthNotConfiguredError, getAuthConfig } from './config.js';
 import {
   exchangeDiscordCode,
-  refreshDiscordAccessToken,
   DiscordOAuthError,
 } from './discord-oauth.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
@@ -17,18 +21,33 @@ import { createSession, resolveSession, revokeSession } from './session.js';
 const sessionCookieName = 'vreeo_session';
 const stateCookieName = 'vreeo_oauth_state';
 const callbackPath = '/api/v1/auth/discord/callback';
-const discordGuildSchema = z.object({
-  id: z.string().regex(/^\d{1,32}$/),
-  name: z.string().min(1).max(200),
-  icon: z.string().nullable().optional(),
-  owner: z.boolean().optional(),
-  permissions: z.string().regex(/^\d+$/),
-});
 const oauthQuerySchema = z.object({
   code: z.string().min(1).optional(),
   state: z.string().min(1).optional(),
   error: z.string().min(1).optional(),
 });
+const guildRouteParams = z.object({
+  discordGuildId: z.string().regex(/^\d{17,20}$/),
+});
+
+function isValidTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const settingsPatchSchema = z
+  .object({
+    locale: z.string().max(10).regex(/^[a-z]{2}(?:-[A-Z]{2})?$/).optional(),
+    timezone: z.string().min(1).max(64).refine(isValidTimeZone, 'Use a valid IANA time zone.').optional(),
+    prefix: z.string().min(1).max(20).regex(/^\S+$/).nullable().optional(),
+  })
+  .strict()
+  .refine((patch) => Object.keys(patch).length > 0, 'At least one setting must be provided.');
+
 
 function cookieOptions(maxAge: number, path = '/') {
   return {
@@ -42,6 +61,76 @@ function cookieOptions(maxAge: number, path = '/') {
 
 function requireAuth(request: FastifyRequest) {
   return resolveSession(request.cookies?.[sessionCookieName], env.SESSION_SECRET);
+}
+
+type AuthenticatedSession = NonNullable<Awaited<ReturnType<typeof resolveSession>>>;
+type GuildAccessResult = { guildId: string } | { error: FastifyReply };
+
+async function resolveGuildAccess(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  session: AuthenticatedSession,
+  config: ReturnType<typeof getAuthConfig>,
+  discordGuildId: string,
+): Promise<GuildAccessResult> {
+  try {
+    const accessToken = await getDiscordAccessToken(session.user.discordUserId, config);
+    const manageableGuilds = await getManageableDiscordGuilds(accessToken);
+    if (!manageableGuilds.some((guild) => guild.id === discordGuildId)) {
+      return {
+        error: sendApiError(
+          reply,
+          request.id,
+          403,
+          'PERMISSION_DENIED',
+          'Your Discord account does not have Manage Server access to this server.',
+        ),
+      };
+    }
+
+    const guild = await prisma.guild.findUnique({
+      where: { discordGuildId },
+      select: { id: true, active: true },
+    });
+    if (!guild?.active) {
+      return {
+        error: sendApiError(
+          reply,
+          request.id,
+          409,
+          'BOT_NOT_IN_GUILD',
+          'VREEO must be installed in this server before it can be configured.',
+        ),
+      };
+    }
+
+    return { guildId: guild.id };
+  } catch (error) {
+    request.log.warn(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      'Guild access verification failed',
+    );
+    if (error instanceof DiscordAccessError) {
+      return {
+        error: sendApiError(
+          reply,
+          request.id,
+          error.statusCode,
+          error.code,
+          error.message,
+        ),
+      };
+    }
+    return {
+      error: sendApiError(
+        reply,
+        request.id,
+        500,
+        'INTERNAL_ERROR',
+        'Guild access could not be verified.',
+      ),
+    };
+  }
 }
 
 export async function authRoutes(app: FastifyInstance) {
@@ -275,145 +364,14 @@ export async function authRoutes(app: FastifyInstance) {
       throw error;
     }
 
-    const account = await prisma.oAuthAccount.findUnique({
-      where: {
-        provider_providerAccountId: {
-          provider: 'discord',
-          providerAccountId: session.user.discordUserId,
-        },
-      },
-      select: {
-        id: true,
-        scopes: true,
-        accessTokenCiphertext: true,
-        refreshTokenCiphertext: true,
-        tokenExpiresAt: true,
-      },
-    });
-    if (!account || !account.accessTokenCiphertext) {
-      return sendApiError(
-        reply,
-        request.id,
-        401,
-        'OAUTH_REAUTH_REQUIRED',
-        'Reconnect Discord to load your servers.',
-      );
-    }
-
-    const scopes = Array.isArray(account.scopes) ? account.scopes : [];
-    if (!scopes.includes('guilds')) {
-      return sendApiError(
-        reply,
-        request.id,
-        403,
-        'OAUTH_SCOPE_REQUIRED',
-        'Reconnect Discord and approve server access to continue.',
-      );
-    }
-
-    let accessToken: string;
     try {
-      accessToken = decryptOAuthToken(
-        account.accessTokenCiphertext,
-        config.oauthTokenEncryptionKey,
-      );
-    } catch (error) {
-      request.log.error(
-        { errorName: error instanceof Error ? error.name : 'unknown' },
-        'OAuth token decryption failed',
-      );
-      return sendApiError(
-        reply,
-        request.id,
-        401,
-        'OAUTH_REAUTH_REQUIRED',
-        'Reconnect Discord to refresh your server access.',
-      );
-    }
-
-    if (!account.tokenExpiresAt || account.tokenExpiresAt.getTime() <= Date.now() + 30_000) {
-      if (!account.refreshTokenCiphertext) {
-        return sendApiError(
-          reply,
-          request.id,
-          401,
-          'OAUTH_REAUTH_REQUIRED',
-          'Reconnect Discord to refresh your server access.',
-        );
-      }
-      try {
-        const refreshToken = decryptOAuthToken(
-          account.refreshTokenCiphertext,
-          config.oauthTokenEncryptionKey,
-        );
-        const refreshed = await refreshDiscordAccessToken(refreshToken, config);
-        accessToken = refreshed.accessToken;
-        await prisma.oAuthAccount.update({
-          where: { id: account.id },
-          data: {
-            accessTokenCiphertext: encryptOAuthToken(
-              refreshed.accessToken,
-              config.oauthTokenEncryptionKey,
-            ),
-            refreshTokenCiphertext: encryptOAuthToken(
-              refreshed.refreshToken,
-              config.oauthTokenEncryptionKey,
-            ),
-            tokenExpiresAt: refreshed.tokenExpiresAt,
-            scopes: refreshed.scopes,
-          },
-        });
-      } catch (error) {
-        request.log.warn(
-          { errorName: error instanceof Error ? error.name : 'unknown' },
-          'Discord OAuth refresh failed',
-        );
-        return sendApiError(
-          reply,
-          request.id,
-          401,
-          'OAUTH_REAUTH_REQUIRED',
-          'Reconnect Discord to refresh your server access.',
-        );
-      }
-    }
-
-    try {
-      const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!response.ok) {
-        return sendApiError(
-          reply,
-          request.id,
-          502,
-          'DISCORD_API_ERROR',
-          'Discord server list could not be loaded.',
-        );
-      }
-      const parsed = z
-        .array(discordGuildSchema)
-        .max(5000)
-        .safeParse(await response.json());
-      if (!parsed.success) {
-        return sendApiError(
-          reply,
-          request.id,
-          502,
-          'DISCORD_API_ERROR',
-          'Discord returned an invalid server list.',
-        );
-      }
-
-      const manageableGuilds = parsed.data.filter((guild) => {
-        const permissions = BigInt(guild.permissions);
-        const administrator = (permissions & 0x8n) === 0x8n;
-        const manageGuild = (permissions & 0x20n) === 0x20n;
-        return guild.owner === true || administrator || manageGuild;
-      });
+      const accessToken = await getDiscordAccessToken(session.user.discordUserId, config);
+      const manageableGuilds = await getManageableDiscordGuilds(accessToken);
       const botGuilds = await prisma.guild.findMany({
-        where: { discordGuildId: { in: manageableGuilds.map((guild) => guild.id) }, active: true },
+        where: {
+          discordGuildId: { in: manageableGuilds.map((guild) => guild.id) },
+          active: true,
+        },
         select: { discordGuildId: true },
       });
       const installedGuildIds = new Set(botGuilds.map((guild) => guild.discordGuildId));
@@ -435,12 +393,153 @@ export async function authRoutes(app: FastifyInstance) {
         { errorName: error instanceof Error ? error.name : 'unknown' },
         'Discord guild list request failed',
       );
+      if (error instanceof DiscordAccessError) {
+        return sendApiError(
+          reply,
+          request.id,
+          error.statusCode,
+          error.code,
+          error.message,
+        );
+      }
       return sendApiError(
         reply,
         request.id,
-        502,
-        'DISCORD_API_ERROR',
+        500,
+        'INTERNAL_ERROR',
         'Discord server list could not be loaded.',
+      );
+    }
+  });
+
+  app.get('/guilds/:discordGuildId/settings', async (request, reply) => {
+    const session = await requireAuth(request);
+    if (!session) {
+      return sendApiError(reply, request.id, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');
+    }
+    const params = guildRouteParams.safeParse(request.params);
+    if (!params.success) {
+      return sendApiError(reply, request.id, 400, 'VALIDATION_ERROR', 'A valid Discord server ID is required.');
+    }
+
+    let config;
+    try {
+      config = getAuthConfig();
+    } catch (error) {
+      if (error instanceof AuthNotConfiguredError) {
+        return sendApiError(reply, request.id, 503, 'SERVICE_UNAVAILABLE', 'Discord login is not configured yet.');
+      }
+      throw error;
+    }
+
+    const access = await resolveGuildAccess(
+      request,
+      reply,
+      session,
+      config,
+      params.data.discordGuildId,
+    );
+    if ('error' in access) return access.error;
+
+    const settings = await prisma.guildSettings.findUnique({
+      where: { guildId: access.guildId },
+      select: { id: true, locale: true, timezone: true, prefix: true, updatedAt: true },
+    });
+    reply.header('Cache-Control', 'no-store');
+    return reply.send({
+      data: settings ?? { id: null, locale: 'en-US', timezone: 'UTC', prefix: null, updatedAt: null },
+    });
+  });
+
+  app.patch('/guilds/:discordGuildId/settings', async (request, reply) => {
+    if (request.headers.origin !== env.WEB_ORIGIN) {
+      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+    }
+
+    const session = await requireAuth(request);
+    if (!session) {
+      return sendApiError(reply, request.id, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');
+    }
+    const params = guildRouteParams.safeParse(request.params);
+    if (!params.success) {
+      return sendApiError(reply, request.id, 400, 'VALIDATION_ERROR', 'A valid Discord server ID is required.');
+    }
+    const patch = settingsPatchSchema.safeParse(request.body);
+    if (!patch.success) {
+      return sendApiError(
+        reply,
+        request.id,
+        400,
+        'VALIDATION_ERROR',
+        'The server settings are invalid.',
+        { fields: patch.error.issues.map((issue) => issue.path.join('.')) },
+      );
+    }
+
+    let config;
+    try {
+      config = getAuthConfig();
+    } catch (error) {
+      if (error instanceof AuthNotConfiguredError) {
+        return sendApiError(reply, request.id, 503, 'SERVICE_UNAVAILABLE', 'Discord login is not configured yet.');
+      }
+      throw error;
+    }
+
+    const access = await resolveGuildAccess(
+      request,
+      reply,
+      session,
+      config,
+      params.data.discordGuildId,
+    );
+    if ('error' in access) return access.error;
+
+    try {
+      const settings = await prisma.$transaction(async (tx) => {
+        const previous = await tx.guildSettings.findUnique({
+          where: { guildId: access.guildId },
+          select: { locale: true, timezone: true, prefix: true },
+        });
+        const updated = await tx.guildSettings.upsert({
+          where: { guildId: access.guildId },
+          create: { guildId: access.guildId, ...patch.data },
+          update: patch.data,
+          select: { id: true, locale: true, timezone: true, prefix: true, updatedAt: true },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            guildId: access.guildId,
+            actorDiscordUserId: session.user.discordUserId,
+            action: 'guild.settings.updated',
+            resourceType: 'guild_settings',
+            resourceId: updated.id,
+            oldValue: {
+              locale: previous?.locale ?? 'en-US',
+              timezone: previous?.timezone ?? 'UTC',
+              prefix: previous?.prefix ?? null,
+            },
+            newValue: patch.data,
+            source: 'dashboard',
+          },
+        });
+        return updated;
+      });
+
+      reply.header('Cache-Control', 'no-store');
+      return reply.send({ data: settings });
+    } catch (error) {
+      request.log.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Guild settings update failed',
+      );
+      return sendApiError(
+        reply,
+        request.id,
+        500,
+        'INTERNAL_ERROR',
+        'Server settings could not be saved.',
       );
     }
   });

@@ -33,6 +33,7 @@ const apiSchema = baseSchema.extend({
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
   DATABASE_URL: postgresUrlSchema.optional(),
   REDIS_URL: redisUrlSchema.optional(),
+  DISCORD_TOKEN: optionalNonEmptyString,
   DISCORD_CLIENT_ID: optionalNonEmptyString,
   DISCORD_CLIENT_SECRET: optionalNonEmptyString,
   DISCORD_REDIRECT_URI: optionalUrl,
@@ -47,6 +48,7 @@ const apiSchema = baseSchema.extend({
 }).superRefine((value, context) => {
   if (value.NODE_ENV === "production" && !value.DATABASE_URL) context.addIssue({ code: z.ZodIssueCode.custom, path: ["DATABASE_URL"], message: "is required in production" });
   if (value.NODE_ENV === "production" && !value.REDIS_URL) context.addIssue({ code: z.ZodIssueCode.custom, path: ["REDIS_URL"], message: "is required in production" });
+  if (value.NODE_ENV === "production" && !value.DISCORD_TOKEN) context.addIssue({ code: z.ZodIssueCode.custom, path: ["DISCORD_TOKEN"], message: "is required in production for live guild authorization" });
   const oauthValues = [value.DISCORD_CLIENT_ID, value.DISCORD_CLIENT_SECRET, value.DISCORD_REDIRECT_URI];
   const oauthConfigured = oauthValues.every((item) => item !== undefined);
   const oauthPartial = oauthValues.some((item) => item !== undefined) && !oauthConfigured;
@@ -74,7 +76,7 @@ export type DiscordOAuthConfig = { clientId: string; clientSecret: string; redir
 export type ApiConfig = BaseConfig & {
   apiHost: string; apiPort: number; databaseUrl: string; redisUrl: string;
   discordOAuth: DiscordOAuthConfig | null; appBaseUrl: string; sessionTtlSeconds: number;
-  sessionCookieName: string; sessionCookieSameSite: "lax" | "strict" | "none"; sessionCookieSecure: boolean;
+  sessionCookieName: string; sessionCookieSameSite: "lax" | "strict" | "none"; sessionCookieSecure: boolean; discordToken?: string;
 };
 export type BotConfig = BaseConfig & { databaseUrl: string; redisUrl: string; discordToken: string; discordClientId?: string; discordDevGuildId?: string };
 
@@ -99,6 +101,7 @@ export function loadApiConfig(environment: NodeJS.ProcessEnv = process.env): Api
     appBaseUrl: new URL(value.APP_BASE_URL).origin, sessionTtlSeconds: value.SESSION_TTL_SECONDS,
     sessionCookieName: value.SESSION_COOKIE_NAME, sessionCookieSameSite: value.SESSION_COOKIE_SAME_SITE,
     sessionCookieSecure: value.SESSION_COOKIE_SECURE,
+    ...(value.DISCORD_TOKEN ? { discordToken: value.DISCORD_TOKEN } : {}),
   };
 }
 

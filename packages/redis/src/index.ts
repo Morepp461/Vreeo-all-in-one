@@ -17,8 +17,8 @@ export function createRedisConnection(options: CreateRedisConnectionOptions): Re
     retryStrategy: (attempt) => Math.min(attempt * 100, 2_000),
   });
   if (options.logger) {
-    connection.on("error", (error) => {
-      options.logger?.warn({ err: error }, "Redis connection error");
+    connection.on("error", () => {
+      options.logger?.warn({ connection: "redis" }, "Redis connection error");
     });
   }
   return connection;
@@ -45,13 +45,21 @@ export async function checkRedisReady(connection: RedisConnection): Promise<void
   }
 }
 
+const deleteIfUnchangedScript = `
+if redis.call("get", KEYS[1]) == ARGV[1] then
+  return redis.call("del", KEYS[1])
+end
+return 0
+`;
+
 export async function getJson<T>(connection: RedisConnection, key: string): Promise<T | null> {
   const raw = await connection.get(key);
   if (raw === null) return null;
   try {
     return JSON.parse(raw) as T;
   } catch {
-    await connection.del(key);
+    // Avoid deleting a fresh value another request may have written after our GET.
+    await connection.eval(deleteIfUnchangedScript, 1, key, raw);
     return null;
   }
 }

@@ -1,39 +1,47 @@
 # Implementation Status
 
-## Current stage: foundation bootstrap
+## Current stage: core application foundation
 
-This branch establishes repository conventions and local infrastructure configuration. It is not a production release.
+This branch builds on `feat/foundation-bootstrap`. It is not a production release and has not been merged into `main`.
 
-### Added in this bootstrap
+### Implemented in this stage
 
-- pnpm workspace and root scripts
-- strict shared TypeScript compiler settings
-- basic repository/editor hygiene
-- local PostgreSQL and Redis Compose services with health checks
-- environment-variable template
-- project scope, stack direction, and repository layout documentation
+- Minimal Fastify API application with request IDs, Helmet, global rate limiting, and consistent error responses.
+- Liveness endpoint at `GET /health`.
+- Readiness endpoint at `GET /health/ready` that returns HTTP 503 until real dependency checks are registered; it does not falsely claim PostgreSQL/Redis/queue readiness.
+- Minimal discord.js gateway process with graceful shutdown and safe mention defaults.
+- Shared Zod environment validation for API and bot startup.
+- Shared Pino logger with secret-field redaction.
+- Unit tests for environment parsing and API health/error behavior.
+- Initial GitHub Actions verification workflow.
 
-### Not implemented yet
+### Explicitly not implemented yet
 
-- API and bot application entrypoints
-- environment schema validation
-- Prisma schema, migrations, repositories, and seed data
-- Redis client, cache/cooldown/rate-limit/lock/session helpers
-- queue and worker process
-- structured logger, metrics, health/readiness integration
-- dashboard and shared package implementations
-- CI workflow and automated test suite
-- first end-to-end product slice (Moderation Warn)
+- PostgreSQL client, Prisma schema/migrations/repositories/seeds.
+- Redis client and cache/cooldown/rate-limit/lock/session adapters.
+- Queue/worker and idempotent job execution.
+- Discord command registry, interaction/event routers, REST abstraction, and command deployment.
+- Authentication, OAuth2, sessions, guild access/context, authorization, and entitlements.
+- Dashboard/admin applications and product features.
+- Committed dependency lockfile and verified green CI.
 
-### Verification
+### Review notes
 
-No dependency installation, build, typecheck, tests, or container startup has been run as part of this GitHub bootstrap. Do not interpret the files in this branch as verified or production-ready.
+- The source specifications use both `packages/entitlements` (Technical Architecture) and `packages/premium` (Implementation Execution Plan/Engineering Backlog). The architecture and current repository layout use `packages/entitlements`; keep that name unless a specification change explicitly resolves the discrepancy.
+- The repository currently uses Fastify as the API framework, matching the current README direction. NestJS remains an allowed alternative in the architecture document, not a reason to rewrite the API.
+- The current API readiness check intentionally fails closed until PostgreSQL, Redis, and queue health checks are wired in a later stage.
+- The CI workflow currently allows lockfile generation because no pnpm lockfile exists yet. A committed lockfile and frozen install are required before calling builds reproducible or release-ready.
+- Root development/test/typecheck scripts build shared packages first because app packages resolve their generated package entrypoints.
+
+### Verification status
+
+GitHub Actions successfully installed the workspace dependencies on the previous CI attempt, then TypeScript checking failed. That failure exposed Fastify logger typing and error narrowing issues; fixes are now committed, but a CI run against the latest commit is still required. Tests, full build, Docker startup, database migrations, and a live Discord connection have not yet been verified. Do not interpret this branch as production-ready.
 
 ### Next sequence
 
-1. Add minimal API and bot apps with validated configuration.
-2. Wire PostgreSQL, Prisma, migrations, and seed workflow.
-3. Wire Redis primitives and a worker/queue boundary.
-4. Add structured logging, metrics, health, and readiness checks.
-5. Add CI and automated checks once the dependency graph and lockfile are established.
-6. Implement the first vertical slice: Moderation Warn.
+1. Get the API/bot foundation through green CI and review the actual build/test output.
+2. Deep-review and implement the database schema/migration foundation against the source database specification.
+3. Add Redis/queue primitives and real readiness checks.
+4. Add the bot command/event lifecycle and API module boundaries.
+5. Add authorization and entitlement foundations before protected feature actions.
+6. Implement the first end-to-end vertical slice: Moderation Warn.

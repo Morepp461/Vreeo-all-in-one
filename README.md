@@ -1,6 +1,6 @@
 # VREEO
 
-VREEO is an all-in-one Discord community management platform built around a Discord bot, a web dashboard, and shared API/services. It is designed as a platform with clear boundaries—not a large bot with a dashboard bolted on.
+VREEO is an all-in-one Discord community management platform built around a Discord bot, web dashboard, admin application, and shared API/services. It is designed as a platform with clear boundaries—not a large bot with a dashboard bolted on.
 
 ## V1 principles
 
@@ -16,9 +16,9 @@ VREEO is an all-in-one Discord community management platform built around a Disc
 - discord.js for the Discord gateway bot
 - Fastify for the API
 - Next.js for the dashboard
-- PostgreSQL for durable data
-- Prisma for database access and migrations
+- PostgreSQL with Prisma migrations for durable data
 - Redis for caching, cooldowns, rate limits, locks, and sessions
+- Structured Pino logging and GitHub Actions CI
 
 ## Repository layout
 
@@ -26,17 +26,20 @@ VREEO is an all-in-one Discord community management platform built around a Disc
 apps/
   api/          Fastify HTTP API
   bot/          Discord gateway process
-  dashboard/    Main web dashboard (planned)
+  dashboard/    Next.js dashboard (not implemented yet)
+  admin/        Internal admin application (not implemented yet)
 packages/
-  config/       Shared configuration and environment validation
-  database/     Prisma schema, migrations, and repository layer
-  discord/      Shared Discord adapters and helpers
-  entitlements/ Feature availability and plan rules
+  config/       Shared environment validation
+  database/     Prisma schema, migrations, and repositories (not implemented yet)
+  discord/      Shared Discord adapters (not implemented yet)
+  entitlements/ Feature availability and plan rules (not implemented yet)
+  events/       Internal event contracts/bus (not implemented yet)
   logger/       Structured logging
-  permissions/  Shared authorization primitives
-  queue/        Background job contracts and workers
-  types/        Shared domain contracts
-  utils/        Small, dependency-light utilities
+  permissions/  Shared authorization primitives (not implemented yet)
+  queue/        Background job contracts/workers (not implemented yet)
+  types/        Shared domain contracts (not implemented yet)
+  utils/        Shared utilities (not implemented yet)
+infrastructure/ Deployment configuration (not implemented yet)
 docs/
   IMPLEMENTATION_STATUS.md
 ```
@@ -44,22 +47,22 @@ docs/
 ## Local prerequisites
 
 - Node.js 22 or newer
-- pnpm 10
+- pnpm 10.18.0
 - Docker Engine or Docker Desktop with Compose
 
 ## Getting started
 
 1. Install dependencies: `pnpm install`
-2. Copy `.env.example` to `.env` and fill in the Discord credentials if you intend to run the bot.
+2. Copy `.env.example` to `.env` and fill in Discord credentials if running the bot.
 3. Start local infrastructure: `pnpm infra:up`
 4. Start the API and bot: `pnpm dev`
 
-The API health endpoint is intended to be `GET /health`. Application entrypoints are not implemented yet, so the dev command is not runnable at this stage.
-
-## Implementation status
-
-This repository is being bootstrapped. See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for what exists and what has—and has not—been verified.
+The API exposes `GET /health` for liveness. `GET /health/ready` deliberately returns HTTP 503 until PostgreSQL, Redis, and queue readiness checks are wired in. The bot requires a valid `DISCORD_TOKEN`. Commands, persistence, authentication, and dashboard features are not implemented yet.
 
 ## Security
 
 Never commit real tokens, passwords, or production environment files. The credentials in the Compose file are development-only and must not be reused outside local development.
+
+## Status
+
+See [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md) for implemented work, known gaps, and verification status.

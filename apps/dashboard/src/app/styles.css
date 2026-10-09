@@ -755,3 +755,41 @@ a:focus-visible {
     flex-direction: column;
   }
 }
+
+.settings-page {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 0, #211e3b, var(--bg) 48%);
+}
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px clamp(20px, 5vw, 64px);
+  border-bottom: 1px solid var(--line);
+  background: #0c0f16b8;
+}
+.settings-back { color: #b7bfd0; font-size: 12px; }
+.settings-back:hover { color: var(--text); }
+.settings-content { width: min(780px, 100%); margin: 0 auto; padding: 54px 22px 70px; }
+.settings-content h1 { margin: 0 0 9px; font-size: clamp(30px, 5vw, 44px); letter-spacing: -.05em; }
+.settings-content > .muted { margin: 0; font-size: 13px; }
+.guild-id-chip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 24px 0 18px; color: #9ba6bb; font-size: 11px; }
+.guild-id-chip code { padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; background: #10141c; color: #c8cfe0; }
+.settings-card { display: grid; gap: 22px; padding: clamp(20px, 4vw, 32px); border: 1px solid var(--line); border-radius: 17px; background: linear-gradient(145deg, #141a25, #10141c); }
+.settings-field { display: grid; gap: 8px; color: #e7eaf3; font-size: 12px; font-weight: 700; }
+.settings-field input, .settings-field select { width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid #343b4d; border-radius: 9px; background: #0c1018; color: var(--text); font: inherit; font-weight: 500; }
+.settings-field input:focus, .settings-field select:focus { border-color: var(--accent); outline: 1px solid var(--accent); }
+.settings-field small { color: #8490a7; font-size: 10px; font-weight: 400; line-height: 1.6; }
+.settings-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 5px; }
+.settings-actions .muted { font-size: 10px; }
+.settings-save { padding: 11px 16px; border: 0; border-radius: 9px; background: #d6d0ff; color: #171427; font-size: 12px; font-weight: 800; cursor: pointer; }
+.settings-save:hover { background: #bfb5ff; }
+.settings-save:disabled { opacity: .6; cursor: wait; }
+.success-banner { padding: 12px 14px; border: 1px solid #2b6955; border-radius: 10px; background: #102a23; color: #9ce8cb; font-size: 12px; }
+.settings-security { margin: 18px 0 0; color: #718097; font-size: 10px; line-height: 1.7; }
+@media (max-width: 520px) {
+  .settings-header { padding: 16px 18px; }
+  .settings-header .brand { font-size: 13px; }
+  .settings-actions { align-items: stretch; flex-direction: column; }
+  .settings-save { width: 100%; }
+}

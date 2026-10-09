@@ -93,6 +93,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
 .empty-icon { display: grid; place-items: center; width: 43px; height: 43px; border: 1px solid #393452; border-radius: 13px; background: #211e32; color: #b6adff; font-size: 21px; }
 .empty-server h3 { margin: 15px 0 8px; font-size: 15px; }
 .empty-server p { max-width: 560px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+
+.guild-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.guild-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: #111620; }
+.guild-avatar { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 13px; object-fit: cover; }
+.guild-fallback { background: #29243e; color: #c7beff; font-size: 17px; font-weight: 800; }
+.guild-details { min-width: 0; flex: 1; }
+.guild-details h3 { overflow: hidden; margin: 0 0 4px; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.guild-details p { margin: 0 0 7px; color: #8793a9; font-size: 10px; }
+.guild-state { color: #e6bd7a; font-size: 9px; font-weight: 700; }
+.guild-state.installed { color: var(--green); }
+.guild-action { flex: 0 0 auto; padding: 8px 10px; border: 1px solid #3b3659; border-radius: 8px; background: #211e32; color: #d0caff; font-size: 10px; font-weight: 700; }
+.guild-action:hover { background: #302a4a; }
+
 .module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
 .module-card { min-height: 178px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #111620; }
 .module-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #35334d; border-radius: 10px; background: #211e32; font-size: 16px; }
@@ -131,6 +144,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outlin
   .stat-card strong { font-size: 16px; }
   .stat-card small { margin-top: 3px; }
   .section-heading { align-items: flex-start; flex-direction: column; margin-top: 32px; }
+  .guild-grid { grid-template-columns: 1fr; }
   .module-grid { grid-template-columns: 1fr; }
   .module-card { min-height: auto; }
   .module-card p { min-height: 0; }

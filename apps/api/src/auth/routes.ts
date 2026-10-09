@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { prisma } from '@vreeo/database/client';
 import { env } from '../settings.js';
 import { sendApiError } from '../http/errors.js';
-import { createOpaqueToken, hashOpaqueToken, safeEqual } from './crypto.js';
+import { createOpaqueToken, safeEqual } from './crypto.js';
 import { AuthNotConfiguredError, getAuthConfig } from './config.js';
 import { exchangeDiscordCode, DiscordOAuthError } from './discord-oauth.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
@@ -28,7 +28,7 @@ function cookieOptions(maxAge: number, path = '/') {
   };
 }
 
-function requireAuth(request: Parameters<Parameters<FastifyInstance['get']>[1]>[0]) {
+function requireAuth(request: FastifyRequest) {
   return resolveSession(request.cookies?.[sessionCookieName], env.SESSION_SECRET);
 }
 
@@ -67,12 +67,22 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.get('/auth/discord/callback', async (request, reply) => {
     const parsedQuery = oauthQuerySchema.safeParse(request.query);
-    const query = parsedQuery.success ? parsedQuery.data : {};
-    const cookieState = request.cookies?.[stateCookieName];
-
     reply.clearCookie(stateCookieName, cookieOptions(0, callbackPath));
 
-    if (!parsedQuery.success || !query.state || !cookieState || !safeEqual(query.state, cookieState)) {
+    if (!parsedQuery.success) {
+      return sendApiError(
+        reply,
+        request.id,
+        400,
+        'VALIDATION_ERROR',
+        'Discord returned an invalid login response.',
+      );
+    }
+
+    const query = parsedQuery.data;
+    const cookieState = request.cookies?.[stateCookieName];
+
+    if (!query.state || !cookieState || !safeEqual(query.state, cookieState)) {
       return sendApiError(
         reply,
         request.id,
@@ -213,6 +223,10 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.post('/auth/logout', async (request, reply) => {
+    if (request.headers.origin !== env.WEB_ORIGIN) {
+      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+    }
+
     await revokeSession(request.cookies?.[sessionCookieName], env.SESSION_SECRET);
     reply.clearCookie(sessionCookieName, cookieOptions(0));
     return reply.code(204).send();
@@ -245,6 +259,10 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   app.delete('/auth/sessions/:sessionId', async (request, reply) => {
+    if (request.headers.origin !== env.WEB_ORIGIN) {
+      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+    }
+
     const session = await requireAuth(request);
     if (!session) {
       return sendApiError(reply, request.id, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');

@@ -1,0 +1,38 @@
+{
+  "name": "vreeo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VREEO — Discord community management platform",
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @vreeo/types --filter @vreeo/permissions --filter @vreeo/entitlements --filter @vreeo/events --filter @vreeo/discord --filter @vreeo/config --filter @vreeo/logger --filter @vreeo/database --filter @vreeo/redis --filter @vreeo/storage --filter @vreeo/queue build && pnpm --parallel --filter @vreeo/api --filter @vreeo/bot dev",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm --filter @vreeo/types --filter @vreeo/permissions --filter @vreeo/entitlements --filter @vreeo/events --filter @vreeo/discord --filter @vreeo/config --filter @vreeo/logger --filter @vreeo/database --filter @vreeo/redis --filter @vreeo/storage --filter @vreeo/queue build && pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm --filter @vreeo/types --filter @vreeo/permissions --filter @vreeo/entitlements --filter @vreeo/events --filter @vreeo/discord --filter @vreeo/config --filter @vreeo/logger --filter @vreeo/database --filter @vreeo/redis --filter @vreeo/storage --filter @vreeo/queue build && pnpm -r --if-present test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "clean": "pnpm -r --if-present clean"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "prettier": "^3.6.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

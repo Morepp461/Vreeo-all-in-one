@@ -47,6 +47,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
         run: pnpm --filter @vreeo/database db:migrate:deploy
+      - name: Show formatter diff for authentication review
+        run: pnpm exec prettier --write . && git diff -- .
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

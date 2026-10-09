@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@vreeo/database";
-import { AuthRepositoryError, type AuthRepository, type AuthSessionRecord, type AuthSessionWithUser, type AuthUserRecord, type CompleteLoginInput } from "./types.js";
+import { AuthRepositoryError, type AuthRepository, type AuthSessionRecord, type AuthSessionWithUser, type AuthUserRecord, type CompleteLoginInput, type AccessibleGuildRecord } from "./types.js";
 function toUserRecord(user: { id: string; discordUserId: string; username: string; displayName: string; locale: string; deletedAt: Date | null; }): AuthUserRecord {
   return { id: user.id, discordUserId: user.discordUserId, username: user.username, displayName: user.displayName, locale: user.locale, deletedAt: user.deletedAt };
 }
@@ -34,6 +34,27 @@ export class PrismaAuthRepository implements AuthRepository {
         create: { userId: user.id, provider: "discord", providerAccountId: input.identity.id, scopes: input.scopes },
         update: { userId: user.id, scopes: input.scopes },
       });
+      const botGuilds = await tx.guild.findMany({ where: { active: true, botJoinedAt: { not: null } }, select: { id: true, discordGuildId: true } });
+      const botGuildIds = new Map(botGuilds.map((guild) => [guild.discordGuildId, guild.id]));
+      const priorMemberships = await tx.guildMember.findMany({ where: { userId: user.id, isMember: true }, select: { id: true, metadata: true } });
+      for (const membership of priorMemberships) {
+        const metadata = typeof membership.metadata === "object" && membership.metadata !== null && !Array.isArray(membership.metadata) ? membership.metadata as Record<string, unknown> : {};
+        if (metadata.canManageGuild === true) await tx.guildMember.update({
+          where: { id: membership.id },
+          data: { metadata: { ...metadata, canManageGuild: false, permissionsSyncedAt: input.now.toISOString() } },
+        });
+      }
+      for (const discordGuild of input.manageableGuilds) {
+        const guildId = botGuildIds.get(discordGuild.id);
+        if (!guildId) continue;
+        await tx.guildMember.upsert({
+          where: { guildId_discordUserId: { guildId, discordUserId: input.identity.id } },
+          create: { guildId, userId: user.id, discordUserId: input.identity.id, nickname: null, joinedAt: input.now, leftAt: null, isMember: true, isVerified: false,
+            metadata: { canManageGuild: true, discordPermissions: discordGuild.permissions, owner: discordGuild.owner, permissionsSyncedAt: input.now.toISOString() } },
+          update: { userId: user.id, leftAt: null, isMember: true,
+            metadata: { canManageGuild: true, discordPermissions: discordGuild.permissions, owner: discordGuild.owner, permissionsSyncedAt: input.now.toISOString() } },
+        });
+      }
       const session = await tx.session.create({
         data: { userId: user.id, sessionHash: input.sessionHash, expiresAt: input.sessionExpiresAt, lastSeenAt: input.now },
       });
@@ -56,6 +77,17 @@ export class PrismaAuthRepository implements AuthRepository {
   async listSessions(userId: string, limit: number): Promise<AuthSessionRecord[]> {
     const sessions = await this.prisma.session.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: Math.min(Math.max(limit, 1), 100) });
     return sessions.map(toSessionRecord);
+  }
+  async listAccessibleGuilds(userId: string): Promise<AccessibleGuildRecord[]> {
+    const memberships = await this.prisma.guildMember.findMany({
+      where: { userId, isMember: true },
+      include: { guild: { select: { discordGuildId: true, name: true, iconUrl: true, active: true, botJoinedAt: true } } },
+      orderBy: { guild: { name: "asc" } },
+    });
+    return memberships.filter((membership) => {
+      const metadata = typeof membership.metadata === "object" && membership.metadata !== null && !Array.isArray(membership.metadata) ? membership.metadata as Record<string, unknown> : {};
+      return metadata.canManageGuild === true && membership.guild.active && membership.guild.botJoinedAt !== null;
+    }).map((membership) => ({ id: membership.guild.discordGuildId, name: membership.guild.name, iconUrl: membership.guild.iconUrl }));
   }
   async revokeSession(userId: string, sessionId: string, at: Date): Promise<boolean> {
     const result = await this.prisma.session.updateMany({ where: { id: sessionId, userId, revokedAt: null }, data: { revokedAt: at } });

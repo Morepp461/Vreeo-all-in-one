@@ -36,6 +36,8 @@ export class PrismaGuildAccessRepository implements GuildAccessRepository {
         name: true,
         iconUrl: true,
         ownerDiscordUserId: true,
+        active: true,
+        botJoinedAt: true,
         members: {
           where: { discordUserId, isMember: true, leftAt: null },
           select: { roles: { where: { removedAt: null }, select: { discordRoleId: true } } },
@@ -51,7 +53,7 @@ export class PrismaGuildAccessRepository implements GuildAccessRepository {
       if (guild.ownerDiscordUserId === discordUserId) {
         return [{ id: guild.id, discordGuildId: guild.discordGuildId, name: guild.name, iconUrl: guild.iconUrl, accessLevel: "owner" as const }];
       }
-      const member = guild.members.find((item) => item.roles.length >= 0);
+      const member = guild.members[0];
       if (!member || !member.roles.length) return [];
       const assignedRoleIds = new Set(member.roles.map((role) => role.discordRoleId));
       const rolePermissions = guild.roles

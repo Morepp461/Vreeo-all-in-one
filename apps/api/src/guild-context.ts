@@ -21,21 +21,18 @@ function sendContextError(reply: FastifyReply, request: FastifyRequest, statusCo
 
 /** Reusable pre-handler: resolve tenant ID from the URL, session from the HttpOnly cookie, and access from server-owned records. */
 export function requireGuildContext(dependencies: AuthRouteDependencies) {
-  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void | FastifyReply> => {
     const params = request.params as { guildId?: unknown };
     if (typeof params.guildId !== "string" || !/^\d{1,32}$/.test(params.guildId)) {
-      sendContextError(reply, request, 400, "VALIDATION_ERROR", "The guild ID is invalid.");
-      return;
+      return sendContextError(reply, request, 400, "VALIDATION_ERROR", "The guild ID is invalid.");
     }
     const current = await resolveSession(request, dependencies);
     if (!current) {
-      sendContextError(reply, request, 401, "AUTH_REQUIRED", "Please sign in to continue.");
-      return;
+      return sendContextError(reply, request, 401, "AUTH_REQUIRED", "Please sign in to continue.");
     }
     const guild = await dependencies.repository.getAccessibleGuild(current.user.id, params.guildId);
     if (!guild) {
-      sendContextError(reply, request, 403, "GUILD_ACCESS_DENIED", "You do not have access to this server.");
-      return;
+      return sendContextError(reply, request, 403, "GUILD_ACCESS_DENIED", "You do not have access to this server.");
     }
     request.vreeoGuildContext = { userId: current.user.id, guild };
   };

@@ -36,6 +36,27 @@ describe('API authentication boundary', () => {
     });
   });
 
+  it('requires an authenticated session before reading guild settings', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/guilds/123456789012345678/settings',
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({ error: { code: 'AUTH_REQUIRED' } });
+  });
+
+  it('rejects guild settings writes without a trusted origin', async () => {
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/guilds/123456789012345678/settings',
+      payload: { locale: 'id-ID' },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: { code: 'CSRF_INVALID' } });
+  });
+
   it('rejects logout requests without a trusted browser origin', async () => {
     const response = await app.inject({ method: 'POST', url: '/api/v1/auth/logout' });
 

@@ -4,6 +4,7 @@ import type { Logger } from "pino";
 import type { RedisConnection } from "@vreeo/redis";
 
 export const QUEUE_PREFIX = "vreeo:queue";
+export type VreeoQueue<TData = unknown> = Queue<Record<string, TData>, unknown, string>;
 export const DEFAULT_JOB_ATTEMPTS = 5;
 export const DEFAULT_BACKOFF_DELAY_MS = 1_000;
 
@@ -41,9 +42,9 @@ export function createQueue<TData = unknown>(
   name: string,
   connection: RedisConnection,
   options: CreateQueueOptions = {},
-): Queue<TData, unknown, string> {
+): VreeoQueue<TData> {
   assertQueueName(name);
-  return new Queue<TData, unknown, string>(name, {
+  return new Queue<Record<string, TData>, unknown, string>(name, {
     connection,
     prefix: QUEUE_PREFIX,
     defaultJobOptions: defaultQueueJobOptions(options.defaultJobOptions),
@@ -60,22 +61,22 @@ export function createIdempotentJobId(queueName: string, idempotencyKey: string)
 }
 
 export async function addIdempotentJob<TData>(
-  queue: Queue<TData, unknown, string>,
+  queue: VreeoQueue<TData>,
   jobName: string,
   data: TData,
   idempotencyKey: string,
   options: JobsOptions = {},
 ) {
   // BullMQ's typed-job-map overload narrows names from the payload type; this generic helper intentionally accepts arbitrary names.
-  return queue.add(jobName as never, data, {
+  return queue.add(jobName, data, {
     ...options,
     jobId: createIdempotentJobId(queue.name, idempotencyKey),
   });
 }
 
 export interface QueueWorkerHandle<TData = unknown, TResult = unknown> {
-  worker: Worker<TData, TResult, string>;
-  deadLetterQueue: Queue<DeadLetterJobData, unknown, string>;
+  worker: Worker<Record<string, TData>, TResult, string>;
+  deadLetterQueue: VreeoQueue<DeadLetterJobData>;
   close(): Promise<void>;
 }
 
@@ -87,7 +88,7 @@ export interface CreateQueueWorkerOptions {
 export function createQueueWorker<TData = unknown, TResult = unknown>(
   queueName: string,
   connection: RedisConnection,
-  processor: Processor<TData, TResult, string>,
+  processor: Processor<Record<string, TData>, TResult, string>,
   options: CreateQueueWorkerOptions = {},
 ): QueueWorkerHandle<TData, TResult> {
   assertQueueName(queueName);
@@ -100,7 +101,7 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
   const logger = options.logger;
   const pendingDeadLetterWrites = new Set<Promise<void>>();
   const deadLetterQueue = createQueue<DeadLetterJobData>(`${queueName}-dlq`, connection);
-  const worker = new Worker<TData, TResult, string>(queueName, processor, {
+  const worker = new Worker<Record<string, TData>, TResult, string>(queueName, processor, {
     connection,
     prefix: QUEUE_PREFIX,
     concurrency: options.concurrency ?? 5,

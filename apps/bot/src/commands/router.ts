@@ -38,7 +38,9 @@ export class BotInteractionRouter {
     client.on(Events.InteractionCreate, (interaction) => {
       void this.dispatch(interaction).catch((error) => {
         this.context.logger.error({ err: error, interactionId: interaction.id }, "Interaction router failed unexpectedly");
-        void this.replySafely(interaction, "This interaction could not be completed. Please try again.");
+        if (interaction.isRepliable()) {
+          void interaction.reply({ content: "This interaction could not be completed. Please try again.", flags: MessageFlags.Ephemeral }).catch(() => undefined);
+        }
       });
     });
   }
@@ -111,7 +113,7 @@ export class BotInteractionRouter {
       .sort((left, right) => right.length - left.length)[0];
   }
 
-  private async replySafely(interaction: Interaction, content: string): Promise<void> {
+  private async replySafely(interaction: ChatInputCommandInteraction | MessageComponentInteraction | ModalSubmitInteraction, content: string): Promise<void> {
     if (!interaction.isRepliable()) return;
     try {
       if (interaction.replied || interaction.deferred) await interaction.editReply({ content });

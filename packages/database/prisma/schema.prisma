@@ -21,6 +21,7 @@ model User {
   oauthAccounts  OAuthAccount[]
   sessions       Session[]
   guildMembers   GuildMember[]
+  guildAccesses  UserGuildAccess[]
   auditLogs      AuditLog[]
 
   @@index([lastLoginAt])
@@ -70,6 +71,7 @@ model Guild {
   settings           GuildSetting?
   features           GuildFeature[]
   members            GuildMember[]
+  userAccess          UserGuildAccess[]
   memberRoles        GuildMemberRole[]
   roles              GuildRole[]
   channels           GuildChannel[]
@@ -105,6 +107,24 @@ model Guild {
   @@index([active])
   @@index([ownerDiscordUserId])
   @@map("guilds")
+}
+
+model UserGuildAccess {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  guildId         String   @map("guild_id") @db.Uuid
+  permissions     String   @db.Text
+  isOwner         Boolean  @map("is_owner")
+  lastVerifiedAt  DateTime @map("last_verified_at") @db.Timestamptz(6)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  guild           Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, guildId])
+  @@index([guildId, lastVerifiedAt])
+  @@index([userId, lastVerifiedAt])
+  @@map("user_guild_access")
 }
 
 model GuildSetting {

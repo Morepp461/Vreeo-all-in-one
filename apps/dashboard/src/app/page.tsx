@@ -12,6 +12,7 @@ type DashboardUser = {
 };
 
 type ApiError = { error?: { message?: string } };
+type DashboardGuild = { id: string; name: string; iconUrl: string | null; owner: boolean; botInstalled: boolean };
 const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1').replace(/\/$/, '');
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -43,6 +44,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [guilds, setGuilds] = useState<DashboardGuild[]>([]);
+  const [guildsLoading, setGuildsLoading] = useState(false);
 
   const loadUser = useCallback(async () => {
     setLoading(true);
@@ -50,8 +53,19 @@ export default function HomePage() {
     try {
       const response = await apiRequest<{ data: DashboardUser }>('/auth/me');
       setUser(response.data);
+      setGuildsLoading(true);
+      try {
+        const guildResponse = await apiRequest<{ data: DashboardGuild[] }>('/guilds');
+        setGuilds(guildResponse.data);
+      } catch (cause) {
+        setGuilds([]);
+        setError(cause instanceof Error ? cause.message : 'Could not load Discord servers.');
+      } finally {
+        setGuildsLoading(false);
+      }
     } catch (cause) {
       setUser(null);
+      setGuilds([]);
       const message = cause instanceof Error ? cause.message : 'Could not reach the VREEO API.';
       if (!message.toLowerCase().includes('sign in')) setError(message);
     } finally {
@@ -148,8 +162,8 @@ export default function HomePage() {
           <article className="stat-card"><span className="stat-icon">⌘</span><p>Platform status</p><strong>Foundation</strong><small>Core services in development</small></article>
           <article className="stat-card"><span className="stat-icon">⚡</span><p>AI in V1</p><strong>Not included</strong><small>As defined in the VREEO plan</small></article>
         </section>
-        <section className="section-heading" id="servers"><div><p className="eyebrow">SERVER MANAGEMENT</p><h2>Your Discord servers</h2><p className="muted">Server listing and permission checks are the next integration slice.</p></div><span className="pill">Coming online</span></section>
-        <div className="empty-server"><div className="empty-icon">◈</div><h3>Server access is not connected yet</h3><p>Discord identity is connected. Server selection will appear once the bot membership and Manage Server permission checks are implemented.</p></div>
+        <section className="section-heading" id="servers"><div><p className="eyebrow">SERVER MANAGEMENT</p><h2>Your Discord servers</h2><p className="muted">Only servers where your Discord account has Manage Server or Administrator access are listed.</p></div><span className="pill">{guilds.length} available</span></section>
+        {guildsLoading ? <div className="empty-server"><div className="empty-icon">◈</div><h3>Loading your servers…</h3><p>VREEO is checking your Discord access and bot membership.</p></div> : guilds.length === 0 ? <div className="empty-server"><div className="empty-icon">◈</div><h3>No manageable servers found</h3><p>Make sure you own a server or have Manage Server / Administrator permissions, then reconnect Discord if you changed OAuth access.</p></div> : <div className="guild-grid">{guilds.map((guild) => <article className="guild-card" key={guild.id}>{guild.iconUrl ? <img className="guild-avatar" src={guild.iconUrl} alt="" /> : <div className="guild-avatar guild-fallback">{guild.name.slice(0, 1).toUpperCase()}</div>}<div className="guild-details"><h3>{guild.name}</h3><p>{guild.owner ? 'Server owner' : 'Manage Server access'}</p><span className={guild.botInstalled ? 'guild-state installed' : 'guild-state'}>{guild.botInstalled ? '● Bot connected' : '○ Bot not connected'}</span></div>{guild.botInstalled ? <a className="guild-action" href={`#modules`} aria-label={`Open modules for ${guild.name}`}>Open ↗</a> : <a className="guild-action" href={process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID)}&permissions=1099511712838&scope=bot%20applications.commands&guild_id=${encodeURIComponent(guild.id)}&disable_guild_select=true` : 'https://discord.com/developers/applications'} target="_blank" rel="noreferrer">Add bot ↗</a>}</article>)}</div>}
         <section className="section-heading" id="modules"><div><p className="eyebrow">MODULAR TOOLKIT</p><h2>Platform modules</h2><p className="muted">Module cards reflect planned areas; they are not presented as active features yet.</p></div></section>
         <div className="module-grid">{modules.map((module) => <article className="module-card" key={module.name}><span className="module-icon">{module.icon}</span><h3>{module.name}</h3><p>{module.description}</p><span className="module-state">{module.state}</span></article>)}</div>
         <footer className="dashboard-footer">VREEO · Discord management platform <span>AI is not part of V1</span></footer>

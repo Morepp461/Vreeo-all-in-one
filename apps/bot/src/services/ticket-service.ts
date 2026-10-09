@@ -31,21 +31,25 @@ function readObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export async function loadTicketSettings(guildId: string): Promise<TicketSettings> {
-  const feature = await prisma.guildFeature.findUnique({
-    where: { guildId_featureKey: { guildId, featureKey: 'tickets' } },
-    select: { config: true, enabled: true },
-  });
-  const config = readObject(feature?.config);
+export function readTicketSettings(configValue: unknown, enabled = false): TicketSettings {
+  const config = readObject(configValue);
   const category = config.ticketCategoryId;
   const staffRole = config.ticketStaffRoleId;
   return {
-    enabled: feature?.enabled ?? false,
+    enabled,
     ticketCategoryId:
       typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
     staffRoleId:
       typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
   };
+}
+
+export async function loadTicketSettings(guildId: string): Promise<TicketSettings> {
+  const feature = await prisma.guildFeature.findUnique({
+    where: { guildId_featureKey: { guildId, featureKey: 'tickets' } },
+    select: { config: true, enabled: true },
+  });
+  return readTicketSettings(feature?.config, feature?.enabled ?? false);
 }
 
 async function findExistingRequest(interactionId: string): Promise<TicketCreationResult | null> {
@@ -66,7 +70,6 @@ export async function createTicketChannel(input: {
   guild: Guild;
   guildRecordId: string;
   userId: string;
-  userTag: string;
   interactionId: string;
   subject: string;
   categoryId: string;

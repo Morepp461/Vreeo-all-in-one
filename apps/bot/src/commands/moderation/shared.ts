@@ -78,12 +78,15 @@ export async function finalizeModerationCase(
   errorMessage?: string,
 ) {
   await prisma.$transaction(async (tx) => {
-    await tx.moderationCase.update({
+    const record = await tx.moderationCase.update({
       where: { id: caseId },
       data: { status },
+      select: { guildId: true, moderatorDiscordUserId: true },
     });
     await tx.auditLog.create({
       data: {
+        guildId: record.guildId,
+        actorDiscordUserId: record.moderatorDiscordUserId,
         action: `moderation.case.${status}`,
         resourceType: 'moderation_case',
         resourceId: caseId,

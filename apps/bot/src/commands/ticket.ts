@@ -464,7 +464,6 @@ export const ticketCommand: VreeoCommand = {
         .setFooter({ text: 'Showing up to 10 active tickets' });
       await interaction.editReply({
         embeds: [embed],
-        ephemeral: true,
         allowedMentions: { parse: [] },
       });
       return;
@@ -532,8 +531,8 @@ export const ticketCommand: VreeoCommand = {
         oldValue: { claimedByDiscordUserId: ticket.claimedByDiscordUserId },
         newValue: { claimedByDiscordUserId: interaction.user.id, status: 'claimed' },
       });
-      await interaction.reply({
-        content: `Ticket #${ticket.ticketNumber.toString()} claimed by <@${interaction.user.id}>.`,
+      await interaction.editReply({
+        content: `Ticket #${ticket.ticketNumber.toString()} claimed by <@${interaction.user.id}>`,
         allowedMentions: { parse: [] },
       });
       await channel.send({
@@ -650,9 +649,9 @@ export const ticketCommand: VreeoCommand = {
             error instanceof Error ? error.message : 'Unknown error',
           );
         });
-      await interaction.reply({
+      await interaction.editReply({
         content: `Ticket #${ticket.ticketNumber.toString()} has been closed.`,
-        ephemeral: true,
+        allowedMentions: { parse: [] },
       });
       return;
     }
@@ -773,9 +772,9 @@ export const ticketCommand: VreeoCommand = {
             error instanceof Error ? error.message : 'Unknown error',
           );
         });
-      await interaction.reply({
+      await interaction.editReply({
         content: `Ticket #${ticket.ticketNumber.toString()} has been reopened.`,
-        ephemeral: true,
+        allowedMentions: { parse: [] },
       });
     }
   },

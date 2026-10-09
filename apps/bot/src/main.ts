@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { commandMap } from './commands/index.js';
+import { markGuildLeft, syncGuild } from './services/guild-sync.js';
 import { getBotToken } from './config.js';
 
 const token = getBotToken();
@@ -9,8 +10,28 @@ const client = new Client({
   allowedMentions: { parse: [], repliedUser: false },
 });
 
-client.once('clientReady', (readyClient) => {
+client.once('clientReady', async (readyClient) => {
   console.info(`Discord bot connected as ${readyClient.user.tag}`);
+  const guilds = [...readyClient.guilds.cache.values()];
+  for (let index = 0; index < guilds.length; index += 10) {
+    const batch = guilds.slice(index, index + 10);
+    await Promise.all(batch.map((guild) => syncGuild(guild).catch((error: unknown) => {
+      console.error('Guild sync failed:', error instanceof Error ? error.message : 'Unknown error');
+    })));
+  }
+  console.info(`Guild synchronization completed for ${guilds.length} cached servers.`);
+});
+
+client.on('guildCreate', (guild) => {
+  void syncGuild(guild).catch((error: unknown) => {
+    console.error('New guild sync failed:', error instanceof Error ? error.message : 'Unknown error');
+  });
+});
+
+client.on('guildDelete', (guild) => {
+  void markGuildLeft(guild).catch((error: unknown) => {
+    console.error('Guild removal sync failed:', error instanceof Error ? error.message : 'Unknown error');
+  });
 });
 
 client.on('interactionCreate', async (interaction) => {

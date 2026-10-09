@@ -95,8 +95,8 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
   if (!Number.isSafeInteger(options.concurrency ?? 5) || (options.concurrency ?? 5) <= 0) {
     throw new Error("Worker concurrency must be a positive integer");
   }
-  if (queueName.length > 95) {
-    throw new Error("Queue names used by workers must be 95 characters or fewer");
+  if (queueName.length > 91) {
+    throw new Error("Queue names used by workers must be 91 characters or fewer so the DLQ suffix fits");
   }
   const logger = options.logger;
   const pendingDeadLetterWrites = new Set<Promise<void>>();
@@ -125,7 +125,7 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
       originalJobName: job.name,
       attemptsMade: job.attemptsMade,
       failedAt: new Date().toISOString(),
-      errorName: error.name || "Error",
+      errorName: /^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(error.name) ? error.name : "Error",
       payloadReference: `${queueName}:${String(job.id)}`,
     };
     const deadLetterJobId = `dlq-${createHash("sha256").update(deadLetter.payloadReference).digest("hex")}`;

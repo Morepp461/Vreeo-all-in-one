@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Current stage: infrastructure foundation
+## Current stage: shared domain contracts and permission foundation
 
 This branch builds on `feat/database-foundation`. It is not a production release and has not been merged into `main`.
 
@@ -37,12 +37,12 @@ This branch builds on `feat/database-foundation`. It is not a production release
 
 ### Verification status
 
-GitHub Actions passed on commit `92b71f6928bbb7206dceb2236f15e8c73185e3f8`, including Redis primitive and queue retry/idempotency/DLQ integration tests, Prisma validation and migrations, schema drift, typecheck, and build. The API queue-readiness integration in this commit is awaiting CI. PostgreSQL and Redis are ephemeral CI services; local Docker startup and live Discord connection remain unverified.
+The infrastructure branch passed GitHub Actions on commit `f774833f6b456029267cc3359dcd4be882dbfcf1`, including Prisma validation/migrations, schema drift, Redis primitives, queue retry/idempotency/DLQ integration tests, typecheck, and build. This shared-package branch is awaiting its own CI. Local Docker startup and live Discord connection remain unverified.
 
 ### Next sequence
 
-1. Verify API readiness against PostgreSQL, Redis, and BullMQ in CI.
-2. Review remaining shared-package boundaries and define domain contracts.
-3. Implement OAuth2/session and guild-access foundations.
-4. Implement centralized permissions and entitlements before moderation actions.
+1. Verify shared types and permission precedence in CI.
+2. Implement entitlement resolution from database-backed plans, subscriptions, and explicit grants; resolve any source-spec precedence ambiguity before coding.
+3. Implement OAuth2/session authentication and guild access/context.
+4. Add permission middleware and server-side Discord permission/hierarchy checks.
 5. Build Moderation Warn end-to-end with idempotency, case/warning persistence, audit logging, API/bot handlers, and tests.

@@ -5,6 +5,7 @@ import { banCommand } from './moderation/ban.js';
 import { caseCommand } from './moderation/case.js';
 import { kickCommand } from './moderation/kick.js';
 import { timeoutCommand } from './moderation/timeout.js';
+import { ticketCommand } from './ticket.js';
 import { warnCommand } from './moderation/warn.js';
 import { warningsCommand } from './moderation/warnings.js';
 import { helpCommand } from './help.js';
@@ -29,6 +30,7 @@ export const commands: VreeoCommand[] = [
   banCommand,
   caseCommand,
   warningsCommand,
+  ticketCommand,
 ];
 
 export const commandMap = new Map(commands.map((command) => [command.data.name, command]));

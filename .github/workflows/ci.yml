@@ -21,6 +21,10 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
+      - name: Validate database schema and generate Prisma client
+        env:
+          DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
+        run: pnpm --filter @vreeo/database db:validate && pnpm --filter @vreeo/database db:generate
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

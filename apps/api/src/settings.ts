@@ -41,12 +41,14 @@ const envSchema = z
       }
     }
 
-    if (value.SESSION_SECRET?.includes('replace-with-at-least-32-random-characters')) {
-      context.addIssue({
-        code: 'custom',
-        path: ['SESSION_SECRET'],
-        message: 'SESSION_SECRET must be replaced before production',
-      });
+    for (const key of ['SESSION_SECRET', 'OAUTH_TOKEN_ENCRYPTION_KEY'] as const) {
+      if (value[key]?.includes('replace-with-')) {
+        context.addIssue({
+          code: 'custom',
+          path: [key],
+          message: `${key} must be replaced before production`,
+        });
+      }
     }
   });
 

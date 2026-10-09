@@ -109,3 +109,14 @@ export function replyFailure(interaction: ChatInputCommandInteraction, message: 
   }
   return interaction.reply({ content: message, ephemeral: true, allowedMentions: { parse: [] } });
 }
+
+export async function invokerCanModerateTarget(
+  interaction: ChatInputCommandInteraction,
+  target: import('discord.js').GuildMember,
+): Promise<boolean> {
+  if (!interaction.guild) return false;
+  if (interaction.guild.ownerId === interaction.user.id) return true;
+  const actor = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+  if (!actor || actor.id === target.id) return false;
+  return actor.roles.highest.comparePositionTo(target.roles.highest) > 0;
+}

@@ -32,8 +32,11 @@ model OAuthAccount {
   userId            String   @map("user_id") @db.Uuid
   provider          String   @db.VarChar(50)
   providerAccountId String   @map("provider_account_id") @db.VarChar(128)
-  scopes            Json     @default("[]") @db.JsonB
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  scopes                    Json      @default("[]") @db.JsonB
+  accessTokenCiphertext     String?   @map("access_token_ciphertext") @db.Text
+  refreshTokenCiphertext    String?   @map("refresh_token_ciphertext") @db.Text
+  tokenExpiresAt            DateTime? @map("token_expires_at") @db.Timestamptz(6)
+  createdAt                 DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

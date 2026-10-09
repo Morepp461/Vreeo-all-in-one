@@ -12,10 +12,7 @@ import {
   getManageableDiscordGuilds,
 } from './discord-access.js';
 import { AuthNotConfiguredError, getAuthConfig } from './config.js';
-import {
-  exchangeDiscordCode,
-  DiscordOAuthError,
-} from './discord-oauth.js';
+import { exchangeDiscordCode, DiscordOAuthError } from './discord-oauth.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
 
 const sessionCookieName = 'vreeo_session';
@@ -41,13 +38,21 @@ function isValidTimeZone(value: string): boolean {
 
 const settingsPatchSchema = z
   .object({
-    locale: z.string().max(10).regex(/^[a-z]{2}(?:-[A-Z]{2})?$/).optional(),
-    timezone: z.string().min(1).max(64).refine(isValidTimeZone, 'Use a valid IANA time zone.').optional(),
+    locale: z
+      .string()
+      .max(10)
+      .regex(/^[a-z]{2}(?:-[A-Z]{2})?$/)
+      .optional(),
+    timezone: z
+      .string()
+      .min(1)
+      .max(64)
+      .refine(isValidTimeZone, 'Use a valid IANA time zone.')
+      .optional(),
     prefix: z.string().min(1).max(20).regex(/^\S+$/).nullable().optional(),
   })
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, 'At least one setting must be provided.');
-
 
 function cookieOptions(maxAge: number, path = '/') {
   return {
@@ -112,13 +117,7 @@ async function resolveGuildAccess(
     );
     if (error instanceof DiscordAccessError) {
       return {
-        error: sendApiError(
-          reply,
-          request.id,
-          error.statusCode,
-          error.code,
-          error.message,
-        ),
+        error: sendApiError(reply, request.id, error.statusCode, error.code, error.message),
       };
     }
     return {
@@ -394,13 +393,7 @@ export async function authRoutes(app: FastifyInstance) {
         'Discord guild list request failed',
       );
       if (error instanceof DiscordAccessError) {
-        return sendApiError(
-          reply,
-          request.id,
-          error.statusCode,
-          error.code,
-          error.message,
-        );
+        return sendApiError(reply, request.id, error.statusCode, error.code, error.message);
       }
       return sendApiError(
         reply,
@@ -419,7 +412,13 @@ export async function authRoutes(app: FastifyInstance) {
     }
     const params = guildRouteParams.safeParse(request.params);
     if (!params.success) {
-      return sendApiError(reply, request.id, 400, 'VALIDATION_ERROR', 'A valid Discord server ID is required.');
+      return sendApiError(
+        reply,
+        request.id,
+        400,
+        'VALIDATION_ERROR',
+        'A valid Discord server ID is required.',
+      );
     }
 
     let config;
@@ -427,7 +426,13 @@ export async function authRoutes(app: FastifyInstance) {
       config = getAuthConfig();
     } catch (error) {
       if (error instanceof AuthNotConfiguredError) {
-        return sendApiError(reply, request.id, 503, 'SERVICE_UNAVAILABLE', 'Discord login is not configured yet.');
+        return sendApiError(
+          reply,
+          request.id,
+          503,
+          'SERVICE_UNAVAILABLE',
+          'Discord login is not configured yet.',
+        );
       }
       throw error;
     }
@@ -447,13 +452,25 @@ export async function authRoutes(app: FastifyInstance) {
     });
     reply.header('Cache-Control', 'no-store');
     return reply.send({
-      data: settings ?? { id: null, locale: 'en-US', timezone: 'UTC', prefix: null, updatedAt: null },
+      data: settings ?? {
+        id: null,
+        locale: 'en-US',
+        timezone: 'UTC',
+        prefix: null,
+        updatedAt: null,
+      },
     });
   });
 
   app.patch('/guilds/:discordGuildId/settings', async (request, reply) => {
     if (request.headers.origin !== env.WEB_ORIGIN) {
-      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+      return sendApiError(
+        reply,
+        request.id,
+        403,
+        'CSRF_INVALID',
+        'Request origin could not be verified.',
+      );
     }
 
     const session = await requireAuth(request);
@@ -462,7 +479,13 @@ export async function authRoutes(app: FastifyInstance) {
     }
     const params = guildRouteParams.safeParse(request.params);
     if (!params.success) {
-      return sendApiError(reply, request.id, 400, 'VALIDATION_ERROR', 'A valid Discord server ID is required.');
+      return sendApiError(
+        reply,
+        request.id,
+        400,
+        'VALIDATION_ERROR',
+        'A valid Discord server ID is required.',
+      );
     }
     const patch = settingsPatchSchema.safeParse(request.body);
     if (!patch.success) {
@@ -481,7 +504,13 @@ export async function authRoutes(app: FastifyInstance) {
       config = getAuthConfig();
     } catch (error) {
       if (error instanceof AuthNotConfiguredError) {
-        return sendApiError(reply, request.id, 503, 'SERVICE_UNAVAILABLE', 'Discord login is not configured yet.');
+        return sendApiError(
+          reply,
+          request.id,
+          503,
+          'SERVICE_UNAVAILABLE',
+          'Discord login is not configured yet.',
+        );
       }
       throw error;
     }

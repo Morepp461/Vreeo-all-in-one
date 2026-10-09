@@ -92,7 +92,23 @@ client.on('autoModerationActionExecution', async (execution) => {
 client.on('interactionCreate', async (interaction) => {
   if (interaction.isButton()) {
     if (interaction.customId.startsWith('vreeo:ticket:create:')) {
-      await handleTicketPanelButton(interaction);
+      try {
+        await handleTicketPanelButton(interaction);
+      } catch (error) {
+        console.error(
+          'Ticket panel handler failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        const payload = {
+          content: 'VREEO could not process this ticket panel. Please try again later.',
+          ephemeral: true,
+        };
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp(payload).catch(() => undefined);
+        } else {
+          await interaction.reply(payload).catch(() => undefined);
+        }
+      }
     }
     return;
   }

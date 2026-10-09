@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { ApiConfig } from "@vreeo/config";
 import { AuthRepositoryError, type AuthRouteDependencies, type AuthSessionRecord, type AuthSessionWithUser } from "./types.js";
+import { canManageDiscordGuild } from "./guild-access.js";
 const OAUTH_STATE_TTL_SECONDS = 300;
 const OAUTH_STATE_COOKIE_NAME = "vreeo_oauth_state";
 const OAUTH_STATE_COOKIE_PATH = "/api/v1/auth/discord/callback";
@@ -73,11 +74,13 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Aut
     if (!code) return sendError(reply, request.id, 400, "AUTH_INVALID", "Discord did not return a valid authorization code.");
     try {
       const token = await dependencies.provider.exchangeCode(code, codeVerifier);
+      if (!token.scopes.includes("guilds")) return sendError(reply, request.id, 502, "SERVICE_UNAVAILABLE", "Discord did not grant guild access required by the dashboard.");
       const identity = await dependencies.provider.fetchIdentity(token.accessToken);
+      const manageableGuilds = (await dependencies.provider.fetchGuilds(token.accessToken)).filter(canManageDiscordGuild);
       const now = new Date();
       const rawSession = randomBytes(32).toString("base64url");
       const expiresAt = new Date(now.getTime() + config.sessionTtlSeconds * 1_000);
-      await repository.completeLogin({ identity, scopes: token.scopes, sessionHash: sessionHash(rawSession), sessionExpiresAt: expiresAt, now });
+      await repository.completeLogin({ identity, scopes: token.scopes, sessionHash: sessionHash(rawSession), sessionExpiresAt: expiresAt, now, manageableGuilds });
       reply.setCookie(config.sessionCookieName, rawSession, { ...cookieOptions(config), maxAge: config.sessionTtlSeconds, expires: expiresAt });
       return reply.redirect(new URL("/", config.appBaseUrl).toString(), 303);
     } catch (error) {
@@ -99,6 +102,12 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Aut
     if (raw && raw.length <= 256) await repository.revokeByHash(sessionHash(raw), new Date());
     reply.clearCookie(config.sessionCookieName, cookieOptions(config));
     return reply.code(204).send();
+  });
+  app.get("/api/v1/auth/guilds", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const current = await resolveSession(request, dependencies);
+    if (!current) return sendError(reply, request.id, 401, "AUTH_REQUIRED", "Please sign in to continue.");
+    return { data: await dependencies.repository.listAccessibleGuilds(current.user.id) };
   });
   app.get("/api/v1/auth/sessions", async (request, reply) => {
     reply.header("Cache-Control", "no-store");

@@ -32,6 +32,12 @@ export function buildRedisKey(namespace: string, ...parts: string[]): string {
   return `vreeo:${segments.map((segment) => encodeURIComponent(segment)).join(":")}`;
 }
 
+function assertKeyParts(keyParts: string[]): void {
+  if (keyParts.length === 0 || keyParts.some((part) => part.trim().length === 0)) {
+    throw new Error("At least one non-empty Redis key part is required");
+  }
+}
+
 export async function checkRedisReady(connection: RedisConnection): Promise<void> {
   const response = await connection.ping();
   if (response !== "PONG") {
@@ -59,7 +65,11 @@ export async function setJson<T>(
   if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds <= 0) {
     throw new Error("Cache TTL must be a positive integer number of seconds");
   }
-  await connection.set(key, JSON.stringify(value), "EX", ttlSeconds);
+  const serialized = JSON.stringify(value);
+  if (serialized === undefined) {
+    throw new Error("Cache value cannot be serialized to JSON");
+  }
+  await connection.set(key, serialized, "EX", ttlSeconds);
 }
 
 export async function consumeCooldown(
@@ -67,6 +77,7 @@ export async function consumeCooldown(
   keyParts: string[],
   ttlMs: number,
 ): Promise<boolean> {
+  assertKeyParts(keyParts);
   if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0) {
     throw new Error("Cooldown TTL must be a positive integer number of milliseconds");
   }
@@ -89,6 +100,7 @@ export async function withDistributedLock<T>(
   ttlMs: number,
   operation: () => Promise<T>,
 ): Promise<LockResult<T>> {
+  assertKeyParts(keyParts);
   if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0) {
     throw new Error("Lock TTL must be a positive integer number of milliseconds");
   }

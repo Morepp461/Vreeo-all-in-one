@@ -5,10 +5,12 @@ describe("environment configuration", () => {
   it("applies safe local API defaults", () => {
     expect(loadApiConfig({}).apiPort).toBe(3001);
     expect(loadApiConfig({}).apiHost).toBe("127.0.0.1");
+    expect(loadApiConfig({}).redisUrl).toBe("redis://127.0.0.1:6379");
   });
 
-  it("rejects invalid API ports", () => {
+  it("rejects invalid API ports and Redis URLs", () => {
     expect(() => loadApiConfig({ API_PORT: "70000" })).toThrow(/API_PORT/);
+    expect(() => loadApiConfig({ REDIS_URL: "not-a-url" })).toThrow(/REDIS_URL/);
   });
 
   it("requires a non-empty bot token", () => {

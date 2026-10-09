@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import { createLoggerOptions } from "@vreeo/logger";
+import type { RedisConnection } from "@vreeo/redis";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { LoggerOptions } from "pino";
 
@@ -12,6 +13,7 @@ export interface ReadinessCheck {
 export interface BuildServerOptions {
   loggerOptions?: LoggerOptions;
   readinessChecks?: ReadinessCheck[];
+  redis?: RedisConnection;
 }
 
 function errorCode(statusCode: number): string {
@@ -47,6 +49,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
     global: true,
     max: 120,
     timeWindow: "1 minute",
+    ...(options.redis ? { redis: options.redis } : {}),
     errorResponseBuilder: (request, _context) => ({
       error: {
         code: "RATE_LIMITED",

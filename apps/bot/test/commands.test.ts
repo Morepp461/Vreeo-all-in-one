@@ -16,6 +16,7 @@ describe('slash command registry', () => {
       'userinfo',
       'avatar',
       'poll',
+      'automod',
       'warn',
       'timeout',
       'kick',

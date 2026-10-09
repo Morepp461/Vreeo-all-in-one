@@ -56,6 +56,13 @@ export function createQueue<TData = unknown>(
   });
 }
 
+export function buildDeadLetterQueueName(queueName: string): string {
+  assertQueueName(queueName);
+  return queueName.length <= 91
+    ? `${queueName}-dlq`
+    : `dlq-${createHash("sha256").update(queueName).digest("hex").slice(0, 40)}`;
+}
+
 export function createIdempotentJobId(queueName: string, idempotencyKey: string): string {
   assertQueueName(queueName);
   if (idempotencyKey.trim().length === 0) {
@@ -137,10 +144,7 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
   }
   const logger = options.logger;
   const pendingDeadLetterWrites = new Set<Promise<void>>();
-  const deadLetterName = queueName.length <= 91
-    ? `${queueName}-dlq`
-    : `dlq-${createHash("sha256").update(queueName).digest("hex").slice(0, 40)}`;
-  const deadLetterQueue = createQueue<DeadLetterJobData>(deadLetterName, connection);
+  const deadLetterQueue = createQueue<DeadLetterJobData>(buildDeadLetterQueueName(queueName), connection);
   const worker = new Worker<TData, TResult, string>(queueName, processor, {
     connection,
     prefix: QUEUE_PREFIX,

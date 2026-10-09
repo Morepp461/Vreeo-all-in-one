@@ -1,6 +1,6 @@
 import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import type { VreeoCommand } from '../types.js';
-import { auditReason, createModerationCase, finalizeModerationCase, parseReason, replyFailure } from './shared.js';
+import { auditReason, createModerationCase, finalizeModerationCase, invokerCanModerateTarget, parseReason, replyFailure } from './shared.js';
 
 export const kickCommand: VreeoCommand = {
   data: new SlashCommandBuilder()
@@ -15,7 +15,8 @@ export const kickCommand: VreeoCommand = {
     const target = interaction.options.getUser('user', true);
     const member = await interaction.guild.members.fetch(target.id).catch(() => null);
     if (!member) return replyFailure(interaction, 'That user is not a member of this server.');
-    if (target.id === interaction.user.id || target.bot) return replyFailure(interaction, 'You cannot kick yourself or a bot account.');
+    if (target.id === interaction.user.id) return replyFailure(interaction, 'You cannot kick yourself.');
+    if (!(await invokerCanModerateTarget(interaction, member))) return replyFailure(interaction, 'Your highest role must be above the target member’s highest role.');
     if (!member.kickable) return replyFailure(interaction, 'Discord does not allow the bot to kick that member. Check role hierarchy and bot permissions.');
     const reason = parseReason(interaction.options.getString('reason'));
     await interaction.deferReply({ ephemeral: true });

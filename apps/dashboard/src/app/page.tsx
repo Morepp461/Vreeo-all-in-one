@@ -338,8 +338,8 @@ export default function HomePage() {
                 {guild.botInstalled ? (
                   <a
                     className="guild-action"
-                    href={`#modules`}
-                    aria-label={`Open modules for ${guild.name}`}
+                    href={`/guild/${encodeURIComponent(guild.id)}`}
+                    aria-label={`Open settings for ${guild.name}`}
                   >
                     Open ↗
                   </a>

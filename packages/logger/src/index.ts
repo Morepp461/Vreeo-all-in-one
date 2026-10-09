@@ -23,13 +23,16 @@ const redactPaths = [
   "*.client_secret",
 ];
 
-export function createLogger(options: CreateLoggerOptions): Logger {
-  const loggerOptions: LoggerOptions = {
+export function createLoggerOptions(options: CreateLoggerOptions): LoggerOptions {
+  return {
     level: options.level ?? process.env.LOG_LEVEL ?? "info",
     base: { service: options.service, ...options.base },
     redact: { paths: redactPaths, censor: "[REDACTED]" },
     messageKey: "message",
     timestamp: pino.stdTimeFunctions.isoTime,
   };
-  return pino(loggerOptions);
+}
+
+export function createLogger(options: CreateLoggerOptions): Logger {
+  return pino(createLoggerOptions(options));
 }

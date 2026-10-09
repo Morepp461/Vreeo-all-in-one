@@ -1,4 +1,3 @@
-import { createLogger } from "@vreeo/logger";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildServer } from "./server.js";
@@ -12,7 +11,7 @@ describe("API server", () => {
   });
 
   it("exposes liveness without claiming dependency readiness", async () => {
-    app = await buildServer({ logger: createLogger({ service: "api-test", level: "silent" }) });
+    app = await buildServer({ loggerOptions: { level: "silent" } });
     const live = await app.inject({ method: "GET", url: "/health" });
     expect(live.statusCode).toBe(200);
     expect(live.json()).toMatchObject({ status: "ok", service: "api" });
@@ -26,7 +25,7 @@ describe("API server", () => {
   });
 
   it("returns a consistent error for unknown routes", async () => {
-    app = await buildServer({ logger: createLogger({ service: "api-test", level: "silent" }) });
+    app = await buildServer({ loggerOptions: { level: "silent" } });
     const response = await app.inject({ method: "GET", url: "/missing" });
     expect(response.statusCode).toBe(404);
     expect(response.json().error).toMatchObject({
@@ -38,7 +37,7 @@ describe("API server", () => {
 
   it("fails readiness without leaking dependency errors", async () => {
     app = await buildServer({
-      logger: createLogger({ service: "api-test", level: "silent" }),
+      loggerOptions: { level: "silent" },
       readinessChecks: [{ name: "database", check: async () => { throw new Error("internal secret"); } }],
     });
     const response = await app.inject({ method: "GET", url: "/health/ready" });
@@ -49,7 +48,7 @@ describe("API server", () => {
 
   it("reports ready only when every registered dependency check succeeds", async () => {
     app = await buildServer({
-      logger: createLogger({ service: "api-test", level: "silent" }),
+      loggerOptions: { level: "silent" },
       readinessChecks: [
         { name: "database", check: async () => undefined },
         { name: "redis", check: async () => undefined },

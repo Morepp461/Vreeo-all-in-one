@@ -1,15 +1,15 @@
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import { createLogger } from "@vreeo/logger";
+import { createLoggerOptions } from "@vreeo/logger";
 import Fastify, { type FastifyInstance } from "fastify";
-import type { Logger } from "pino";
+import type { LoggerOptions } from "pino";
 
 export interface ReadinessCheck {
   name: string;
   check: () => Promise<void>;
 }
 export interface BuildServerOptions {
-  logger?: Logger;
+  loggerOptions?: LoggerOptions;
   readinessChecks?: ReadinessCheck[];
 }
 
@@ -27,7 +27,7 @@ function errorCode(statusCode: number): string {
 
 export async function buildServer(options: BuildServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
-    loggerInstance: options.logger ?? createLogger({ service: "api" }),
+    logger: options.loggerOptions ?? createLoggerOptions({ service: "api" }),
     requestIdHeader: "x-request-id",
     requestIdLogLabel: "requestId",
     trustProxy: false,
@@ -54,12 +54,18 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
   }));
 
   app.setErrorHandler((error, request, reply) => {
-    const statusCode = typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 600
-      ? error.statusCode : 500;
+    const candidate = typeof error === "object" && error !== null
+      ? error as { statusCode?: unknown; message?: unknown }
+      : {};
+    const statusCode = typeof candidate.statusCode === "number" &&
+      candidate.statusCode >= 400 && candidate.statusCode < 600
+      ? candidate.statusCode : 500;
     if (statusCode >= 500) request.log.error({ err: error }, "Request failed unexpectedly");
     const message = statusCode >= 500
       ? "An unexpected error occurred."
-      : statusCode === 400 ? "The request is invalid." : error.message;
+      : statusCode === 400
+        ? "The request is invalid."
+        : typeof candidate.message === "string" ? candidate.message : "The request failed.";
     return reply.code(statusCode).send({
       error: { code: errorCode(statusCode), message, requestId: request.id },
     });

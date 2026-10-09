@@ -2,6 +2,15 @@ import type { DatabaseClient } from "@vreeo/database";
 import type { Guild, GuildMember } from "discord.js";
 
 const MEMBER_BATCH_SIZE = 20;
+const memberSyncs = new Map<string, Promise<void>>();
+
+async function withMemberLock(key: string, operation: () => Promise<void>): Promise<void> {
+  const previous = memberSyncs.get(key) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(operation);
+  memberSyncs.set(key, current);
+  try { await current; }
+  finally { if (memberSyncs.get(key) === current) memberSyncs.delete(key); }
+}
 
 async function inBatches<T>(items: readonly T[], size: number, operation: (item: T) => Promise<void>): Promise<void> {
   for (let offset = 0; offset < items.length; offset += size) {
@@ -137,11 +146,13 @@ async function syncOneMember(member: GuildMember, database: DatabaseClient, inte
 }
 
 export async function syncGuildMember(member: GuildMember, database: DatabaseClient, internalGuildId?: string): Promise<void> {
-  const guildId = internalGuildId ?? (await database.guild.findUniqueOrThrow({
-    where: { discordGuildId: member.guild.id }, select: { id: true },
-  })).id;
-  const user = await database.user.findUnique({ where: { discordUserId: member.id }, select: { id: true } });
-  await syncOneMember(member, database, guildId, user?.id);
+  await withMemberLock(`${member.guild.id}:${member.id}`, async () => {
+    const guildId = internalGuildId ?? (await database.guild.findUniqueOrThrow({
+      where: { discordGuildId: member.guild.id }, select: { id: true },
+    })).id;
+    const user = await database.user.findUnique({ where: { discordUserId: member.id }, select: { id: true } });
+    await syncOneMember(member, database, guildId, user?.id);
+  });
 }
 
 export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseClient, internalGuildId: string): Promise<number> {
@@ -154,7 +165,8 @@ export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseCl
   });
   const userIds = new Map(knownUsers.map((user) => [user.discordUserId, user.id]));
   await inBatches(members, MEMBER_BATCH_SIZE, async (member) => {
-    await syncOneMember(member, database, internalGuildId, userIds.get(member.id));
+    await withMemberLock(`${guild.id}:${member.id}`, () =>
+      syncOneMember(member, database, internalGuildId, userIds.get(member.id)));
   });
 
   const existingMembers = await database.guildMember.findMany({
@@ -176,6 +188,21 @@ export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseCl
     });
   }
   return members.length;
+}
+
+export async function markGuildMemberDeparted(guildDiscordId: string, discordUserId: string, database: DatabaseClient): Promise<void> {
+  await withMemberLock(`${guildDiscordId}:${discordUserId}`, async () => {
+    const guild = await database.guild.findUnique({ where: { discordGuildId: guildDiscordId }, select: { id: true } });
+    if (!guild) return;
+    const existing = await database.guildMember.findUnique({
+      where: { guildId_discordUserId: { guildId: guild.id, discordUserId } },
+      select: { id: true },
+    });
+    if (!existing) return;
+    const now = new Date();
+    await database.guildMember.update({ where: { id: existing.id }, data: { isMember: false, leftAt: now } });
+    await database.guildMemberRole.updateMany({ where: { memberId: existing.id, removedAt: null }, data: { removedAt: now } });
+  });
 }
 
 export async function syncGuildSnapshot(guild: Guild, database: DatabaseClient): Promise<{ guildId: string; memberCount: number | null }> {

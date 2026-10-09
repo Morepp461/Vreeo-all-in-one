@@ -8,17 +8,20 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @vreeo/api --filter @vreeo/bot dev",
+    "dev": "pnpm --filter @vreeo/config --filter @vreeo/logger build && pnpm --parallel --filter @vreeo/api --filter @vreeo/bot dev",
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm --filter @vreeo/config --filter @vreeo/logger build && pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
-    "test": "pnpm -r --if-present test",
+    "test": "pnpm --filter @vreeo/config --filter @vreeo/logger build && pnpm -r --if-present test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
     "clean": "pnpm -r --if-present clean"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

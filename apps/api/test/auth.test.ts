@@ -57,6 +57,16 @@ describe('API authentication boundary', () => {
     expect(response.json()).toMatchObject({ error: { code: 'CSRF_INVALID' } });
   });
 
+  it('rejects session revocation requests without a trusted origin', async () => {
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/auth/sessions/123e4567-e89b-12d3-a456-426614174000',
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ error: { code: 'CSRF_INVALID' } });
+  });
+
   it('rejects logout requests without a trusted browser origin', async () => {
     const response = await app.inject({ method: 'POST', url: '/api/v1/auth/logout' });
 

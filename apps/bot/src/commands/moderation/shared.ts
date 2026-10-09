@@ -20,9 +20,7 @@ export async function createModerationCase(input: {
     });
     const caseNumber = (latest._max.caseNumber ?? 0n) + 1n;
     const durationSeconds = input.durationSeconds;
-    const expiresAt = durationSeconds
-      ? new Date(Date.now() + durationSeconds * 1000)
-      : null;
+    const expiresAt = durationSeconds ? new Date(Date.now() + durationSeconds * 1000) : null;
 
     const moderationCase = await tx.moderationCase.create({
       data: {
@@ -108,7 +106,11 @@ export function auditReason(caseNumber: bigint, actorTag: string, actorId: strin
 
 export function replyFailure(interaction: ChatInputCommandInteraction, message: string) {
   if (interaction.deferred || interaction.replied) {
-    return interaction.followUp({ content: message, ephemeral: true, allowedMentions: { parse: [] } });
+    return interaction.followUp({
+      content: message,
+      ephemeral: true,
+      allowedMentions: { parse: [] },
+    });
   }
   return interaction.reply({ content: message, ephemeral: true, allowedMentions: { parse: [] } });
 }

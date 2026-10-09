@@ -5,14 +5,39 @@ export const pollCommand: VreeoCommand = {
   data: new SlashCommandBuilder()
     .setName('poll')
     .setDescription('Create a simple reaction-based poll.')
-    .addStringOption((option) => option.setName('question').setDescription('Question for the poll.').setMaxLength(240).setRequired(true))
-    .addStringOption((option) => option.setName('option_a').setDescription('First option').setMaxLength(80).setRequired(true))
-    .addStringOption((option) => option.setName('option_b').setDescription('Second option').setMaxLength(80).setRequired(true))
-    .addStringOption((option) => option.setName('option_c').setDescription('Optional third option').setMaxLength(80).setRequired(false))
-    .addStringOption((option) => option.setName('option_d').setDescription('Optional fourth option').setMaxLength(80).setRequired(false)),
+    .addStringOption((option) =>
+      option
+        .setName('question')
+        .setDescription('Question for the poll.')
+        .setMaxLength(240)
+        .setRequired(true),
+    )
+    .addStringOption((option) =>
+      option.setName('option_a').setDescription('First option').setMaxLength(80).setRequired(true),
+    )
+    .addStringOption((option) =>
+      option.setName('option_b').setDescription('Second option').setMaxLength(80).setRequired(true),
+    )
+    .addStringOption((option) =>
+      option
+        .setName('option_c')
+        .setDescription('Optional third option')
+        .setMaxLength(80)
+        .setRequired(false),
+    )
+    .addStringOption((option) =>
+      option
+        .setName('option_d')
+        .setDescription('Optional fourth option')
+        .setMaxLength(80)
+        .setRequired(false),
+    ),
   async execute(interaction) {
     if (!interaction.guild || !interaction.channel || !('send' in interaction.channel)) {
-      await interaction.reply({ content: 'Polls can only be created in a server text channel.', ephemeral: true });
+      await interaction.reply({
+        content: 'Polls can only be created in a server text channel.',
+        ephemeral: true,
+      });
       return;
     }
     const question = interaction.options.getString('question', true);

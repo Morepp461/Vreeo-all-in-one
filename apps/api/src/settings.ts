@@ -31,7 +31,12 @@ const envSchema = z
   .superRefine((value, context) => {
     if (value.NODE_ENV !== 'production') return;
 
-    for (const key of ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'SESSION_SECRET', 'OAUTH_TOKEN_ENCRYPTION_KEY'] as const) {
+    for (const key of [
+      'DISCORD_CLIENT_ID',
+      'DISCORD_CLIENT_SECRET',
+      'SESSION_SECRET',
+      'OAUTH_TOKEN_ENCRYPTION_KEY',
+    ] as const) {
       if (!value[key]) {
         context.addIssue({
           code: 'custom',

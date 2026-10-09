@@ -8,7 +8,10 @@ export const serverInfoCommand: VreeoCommand = {
   async execute(interaction) {
     const guild = interaction.guild;
     if (!guild) {
-      await interaction.reply({ content: 'This command can only be used inside a server.', ephemeral: true });
+      await interaction.reply({
+        content: 'This command can only be used inside a server.',
+        ephemeral: true,
+      });
       return;
     }
     const owner = await guild.fetchOwner().catch(() => null);
@@ -18,7 +21,11 @@ export const serverInfoCommand: VreeoCommand = {
       .setThumbnail(guild.iconURL({ size: 256 }) ?? null)
       .addFields(
         { name: 'Members', value: guild.memberCount.toLocaleString(), inline: true },
-        { name: 'Created', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`, inline: true },
+        {
+          name: 'Created',
+          value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:D>`,
+          inline: true,
+        },
         { name: 'Owner', value: owner ? `${owner.user.tag}` : 'Unavailable', inline: true },
         { name: 'Server ID', value: `\`${guild.id}\``, inline: false },
       )

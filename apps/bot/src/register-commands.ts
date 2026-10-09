@@ -6,11 +6,16 @@ import { commands } from './commands/index.js';
 const envSchema = z.object({
   DISCORD_BOT_TOKEN: z.string().trim().min(1),
   DISCORD_CLIENT_ID: z.string().regex(/^\d{17,20}$/),
-  DISCORD_GUILD_ID: z.string().regex(/^\d{17,20}$/).optional(),
+  DISCORD_GUILD_ID: z
+    .string()
+    .regex(/^\d{17,20}$/)
+    .optional(),
 });
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
-  throw new Error('DISCORD_BOT_TOKEN and a valid DISCORD_CLIENT_ID are required to register commands.');
+  throw new Error(
+    'DISCORD_BOT_TOKEN and a valid DISCORD_CLIENT_ID are required to register commands.',
+  );
 }
 
 const env = parsed.data;
@@ -25,6 +30,9 @@ try {
     `Registered ${commands.length} VREEO commands ${env.DISCORD_GUILD_ID ? 'for the configured test server' : 'globally'}.`,
   );
 } catch (error) {
-  console.error('Slash-command registration failed:', error instanceof Error ? error.message : 'Unknown error');
+  console.error(
+    'Slash-command registration failed:',
+    error instanceof Error ? error.message : 'Unknown error',
+  );
   process.exitCode = 1;
 }

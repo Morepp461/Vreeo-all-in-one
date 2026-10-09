@@ -15,22 +15,35 @@ client.once('clientReady', async (readyClient) => {
   const guilds = [...readyClient.guilds.cache.values()];
   for (let index = 0; index < guilds.length; index += 10) {
     const batch = guilds.slice(index, index + 10);
-    await Promise.all(batch.map((guild) => syncGuild(guild).catch((error: unknown) => {
-      console.error('Guild sync failed:', error instanceof Error ? error.message : 'Unknown error');
-    })));
+    await Promise.all(
+      batch.map((guild) =>
+        syncGuild(guild).catch((error: unknown) => {
+          console.error(
+            'Guild sync failed:',
+            error instanceof Error ? error.message : 'Unknown error',
+          );
+        }),
+      ),
+    );
   }
   console.info(`Guild synchronization completed for ${guilds.length} cached servers.`);
 });
 
 client.on('guildCreate', (guild) => {
   void syncGuild(guild).catch((error: unknown) => {
-    console.error('New guild sync failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      'New guild sync failed:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
   });
 });
 
 client.on('guildDelete', (guild) => {
   void markGuildLeft(guild).catch((error: unknown) => {
-    console.error('Guild removal sync failed:', error instanceof Error ? error.message : 'Unknown error');
+    console.error(
+      'Guild removal sync failed:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
   });
 });
 

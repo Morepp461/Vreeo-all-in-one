@@ -5,7 +5,9 @@ export const avatarCommand: VreeoCommand = {
   data: new SlashCommandBuilder()
     .setName('avatar')
     .setDescription('Display a Discord user avatar in full size.')
-    .addUserOption((option) => option.setName('user').setDescription('Whose avatar to display.').setRequired(false)),
+    .addUserOption((option) =>
+      option.setName('user').setDescription('Whose avatar to display.').setRequired(false),
+    ),
   async execute(interaction) {
     const user = interaction.options.getUser('user') ?? interaction.user;
     const url = user.displayAvatarURL({ size: 1024 });

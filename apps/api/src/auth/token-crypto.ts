@@ -11,7 +11,12 @@ export function encryptOAuthToken(token: string, secret: string): string {
   const cipher = createCipheriv('aes-256-gcm', deriveKey(secret), iv);
   const ciphertext = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return [version, iv.toString('base64url'), tag.toString('base64url'), ciphertext.toString('base64url')].join('.');
+  return [
+    version,
+    iv.toString('base64url'),
+    tag.toString('base64url'),
+    ciphertext.toString('base64url'),
+  ].join('.');
 }
 
 export function decryptOAuthToken(payload: string, secret: string): string {

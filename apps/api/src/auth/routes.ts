@@ -7,7 +7,11 @@ import { sendApiError } from '../http/errors.js';
 import { createOpaqueToken, safeEqual } from './crypto.js';
 import { decryptOAuthToken, encryptOAuthToken } from './token-crypto.js';
 import { AuthNotConfiguredError, getAuthConfig } from './config.js';
-import { exchangeDiscordCode, refreshDiscordAccessToken, DiscordOAuthError } from './discord-oauth.js';
+import {
+  exchangeDiscordCode,
+  refreshDiscordAccessToken,
+  DiscordOAuthError,
+} from './discord-oauth.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
 
 const sessionCookieName = 'vreeo_session';
@@ -131,7 +135,13 @@ export async function authRoutes(app: FastifyInstance) {
     }
 
     try {
-      const { user: discordUser, scopes, accessToken, refreshToken, tokenExpiresAt } = await exchangeDiscordCode(query.code, config);
+      const {
+        user: discordUser,
+        scopes,
+        accessToken,
+        refreshToken,
+        tokenExpiresAt,
+      } = await exchangeDiscordCode(query.code, config);
       const now = new Date();
       const avatarUrl = discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png?size=256`
@@ -238,7 +248,6 @@ export async function authRoutes(app: FastifyInstance) {
     }
   });
 
-
   app.get('/guilds', async (request, reply) => {
     const session = await requireAuth(request);
     if (!session) {
@@ -250,7 +259,13 @@ export async function authRoutes(app: FastifyInstance) {
       config = getAuthConfig();
     } catch (error) {
       if (error instanceof AuthNotConfiguredError) {
-        return sendApiError(reply, request.id, 503, 'SERVICE_UNAVAILABLE', 'Discord login is not configured yet.');
+        return sendApiError(
+          reply,
+          request.id,
+          503,
+          'SERVICE_UNAVAILABLE',
+          'Discord login is not configured yet.',
+        );
       }
       throw error;
     }
@@ -271,42 +286,90 @@ export async function authRoutes(app: FastifyInstance) {
       },
     });
     if (!account || !account.accessTokenCiphertext) {
-      return sendApiError(reply, request.id, 401, 'OAUTH_REAUTH_REQUIRED', 'Reconnect Discord to load your servers.');
+      return sendApiError(
+        reply,
+        request.id,
+        401,
+        'OAUTH_REAUTH_REQUIRED',
+        'Reconnect Discord to load your servers.',
+      );
     }
 
     const scopes = Array.isArray(account.scopes) ? account.scopes : [];
     if (!scopes.includes('guilds')) {
-      return sendApiError(reply, request.id, 403, 'OAUTH_SCOPE_REQUIRED', 'Reconnect Discord and approve server access to continue.');
+      return sendApiError(
+        reply,
+        request.id,
+        403,
+        'OAUTH_SCOPE_REQUIRED',
+        'Reconnect Discord and approve server access to continue.',
+      );
     }
 
     let accessToken: string;
     try {
-      accessToken = decryptOAuthToken(account.accessTokenCiphertext, config.oauthTokenEncryptionKey);
+      accessToken = decryptOAuthToken(
+        account.accessTokenCiphertext,
+        config.oauthTokenEncryptionKey,
+      );
     } catch (error) {
-      request.log.error({ errorName: error instanceof Error ? error.name : 'unknown' }, 'OAuth token decryption failed');
-      return sendApiError(reply, request.id, 401, 'OAUTH_REAUTH_REQUIRED', 'Reconnect Discord to refresh your server access.');
+      request.log.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'OAuth token decryption failed',
+      );
+      return sendApiError(
+        reply,
+        request.id,
+        401,
+        'OAUTH_REAUTH_REQUIRED',
+        'Reconnect Discord to refresh your server access.',
+      );
     }
 
     if (!account.tokenExpiresAt || account.tokenExpiresAt.getTime() <= Date.now() + 30_000) {
       if (!account.refreshTokenCiphertext) {
-        return sendApiError(reply, request.id, 401, 'OAUTH_REAUTH_REQUIRED', 'Reconnect Discord to refresh your server access.');
+        return sendApiError(
+          reply,
+          request.id,
+          401,
+          'OAUTH_REAUTH_REQUIRED',
+          'Reconnect Discord to refresh your server access.',
+        );
       }
       try {
-        const refreshToken = decryptOAuthToken(account.refreshTokenCiphertext, config.oauthTokenEncryptionKey);
+        const refreshToken = decryptOAuthToken(
+          account.refreshTokenCiphertext,
+          config.oauthTokenEncryptionKey,
+        );
         const refreshed = await refreshDiscordAccessToken(refreshToken, config);
         accessToken = refreshed.accessToken;
         await prisma.oAuthAccount.update({
           where: { id: account.id },
           data: {
-            accessTokenCiphertext: encryptOAuthToken(refreshed.accessToken, config.oauthTokenEncryptionKey),
-            refreshTokenCiphertext: encryptOAuthToken(refreshed.refreshToken, config.oauthTokenEncryptionKey),
+            accessTokenCiphertext: encryptOAuthToken(
+              refreshed.accessToken,
+              config.oauthTokenEncryptionKey,
+            ),
+            refreshTokenCiphertext: encryptOAuthToken(
+              refreshed.refreshToken,
+              config.oauthTokenEncryptionKey,
+            ),
             tokenExpiresAt: refreshed.tokenExpiresAt,
             scopes: refreshed.scopes,
           },
         });
       } catch (error) {
-        request.log.warn({ errorName: error instanceof Error ? error.name : 'unknown' }, 'Discord OAuth refresh failed');
-        return sendApiError(reply, request.id, 401, 'OAUTH_REAUTH_REQUIRED', 'Reconnect Discord to refresh your server access.');
+        request.log.warn(
+          { errorName: error instanceof Error ? error.name : 'unknown' },
+          'Discord OAuth refresh failed',
+        );
+        return sendApiError(
+          reply,
+          request.id,
+          401,
+          'OAUTH_REAUTH_REQUIRED',
+          'Reconnect Discord to refresh your server access.',
+        );
       }
     }
 
@@ -316,11 +379,26 @@ export async function authRoutes(app: FastifyInstance) {
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) {
-        return sendApiError(reply, request.id, 502, 'DISCORD_API_ERROR', 'Discord server list could not be loaded.');
+        return sendApiError(
+          reply,
+          request.id,
+          502,
+          'DISCORD_API_ERROR',
+          'Discord server list could not be loaded.',
+        );
       }
-      const parsed = z.array(discordGuildSchema).max(5000).safeParse(await response.json());
+      const parsed = z
+        .array(discordGuildSchema)
+        .max(5000)
+        .safeParse(await response.json());
       if (!parsed.success) {
-        return sendApiError(reply, request.id, 502, 'DISCORD_API_ERROR', 'Discord returned an invalid server list.');
+        return sendApiError(
+          reply,
+          request.id,
+          502,
+          'DISCORD_API_ERROR',
+          'Discord returned an invalid server list.',
+        );
       }
 
       const manageableGuilds = parsed.data.filter((guild) => {
@@ -340,14 +418,25 @@ export async function authRoutes(app: FastifyInstance) {
         data: manageableGuilds.map((guild) => ({
           id: guild.id,
           name: guild.name,
-          iconUrl: guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128` : null,
+          iconUrl: guild.icon
+            ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`
+            : null,
           owner: guild.owner ?? false,
           botInstalled: installedGuildIds.has(guild.id),
         })),
       });
     } catch (error) {
-      request.log.warn({ errorName: error instanceof Error ? error.name : 'unknown' }, 'Discord guild list request failed');
-      return sendApiError(reply, request.id, 502, 'DISCORD_API_ERROR', 'Discord server list could not be loaded.');
+      request.log.warn(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Discord guild list request failed',
+      );
+      return sendApiError(
+        reply,
+        request.id,
+        502,
+        'DISCORD_API_ERROR',
+        'Discord server list could not be loaded.',
+      );
     }
   });
 
@@ -404,7 +493,13 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.delete('/auth/sessions/:sessionId', async (request, reply) => {
     if (request.headers.origin !== env.WEB_ORIGIN) {
-      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+      return sendApiError(
+        reply,
+        request.id,
+        403,
+        'CSRF_INVALID',
+        'Request origin could not be verified.',
+      );
     }
 
     const session = await requireAuth(request);

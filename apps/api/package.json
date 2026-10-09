@@ -24,6 +24,7 @@
     "@fastify/cookie": "^11.0.2",
     "@vreeo/entitlements": "workspace:*",
     "@vreeo/permissions": "workspace:*",
-    "@vreeo/types": "workspace:*"
+    "@vreeo/types": "workspace:*",
+    "@vreeo/discord": "workspace:*"
   }
 }

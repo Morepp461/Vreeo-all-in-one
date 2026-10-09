@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Current stage: authentication and session foundation
+## Current stage: guild access foundation
 
 This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
 
@@ -9,12 +9,16 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Workspace, CI, PostgreSQL schema/migrations, Redis, BullMQ, and object-storage abstraction.
 - Shared domain types, permission evaluation, entitlement resolution, Discord REST wrapper, and internal event contract.
 - Discord OAuth2 authorization-code flow with Redis-backed one-time state, state cookie bound to the initiating browser, opaque HttpOnly session cookies, SHA-256 session-token hashes in PostgreSQL, current-user, logout, and session management.
-- Same-origin protection for cookie-authenticated logout/session revocation; OAuth tokens are used only to fetch identity and are not persisted.
+- Same-origin protection for cookie-authenticated logout/session revocation; OAuth tokens are used only during callback and are not persisted.
+- OAuth callback fetches guild membership with the granted `guilds` scope and filters to owners or users with Discord Administrator/Manage Server permission.
+- Authenticated `GET /api/v1/auth/guilds` returns only manageable guilds with an active bot registry record.
+- Bot syncs guild create/delete and cached guilds to the existing `Guild` model; no schema change was introduced.
 - Production config requires OAuth credentials, HTTPS redirect/origin, and secure session cookies; development may leave OAuth unconfigured.
 
 ### Still not implemented
 
-- Live guild discovery and tenant-scoped guild access middleware.
+- Tenant-scoped guild-context middleware for all guild-scoped routes.
+- Database-backed permission/profile and entitlement policy loaders.
 - Database-backed permission/profile and entitlement policy loaders.
 - Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
 - OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
@@ -25,8 +29,8 @@ Infrastructure and shared package gates previously passed. The auth/session bran
 
 ### Next sequence
 
-1. Verify auth state-cookie binding, callback replay protection, session hash storage, logout CSRF checks, and session listing.
-2. Implement live guild discovery and tenant-scoped guild-context middleware.
+1. Verify guild permission filtering, bot guild registry synchronization, OAuth callback behavior, and session-bound guild listing in CI.
+2. Add tenant-scoped guild-context middleware for every guild-scoped API route.
 3. Wire permission and entitlement packages to database-backed policy loaders.
 4. Add bot command registry and interaction/event routers.
 5. Implement Moderation Warn end-to-end and expand the remaining MVP features.

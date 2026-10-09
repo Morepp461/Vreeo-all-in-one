@@ -49,10 +49,11 @@ export default function GuildSettingsPage() {
       return;
     }
     try {
-      const response = await fetch(
-        `${apiBase}/guilds/${encodeURIComponent(guildId)}/settings`,
-        { credentials: 'include', headers: { Accept: 'application/json' }, cache: 'no-store' },
-      );
+      const response = await fetch(`${apiBase}/guilds/${encodeURIComponent(guildId)}/settings`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error(await readApiError(response));
       const body = (await response.json()) as { data: GuildSettings };
       setSettings(body.data);
@@ -80,19 +81,16 @@ export default function GuildSettingsPage() {
     }
 
     try {
-      const response = await fetch(
-        `${apiBase}/guilds/${encodeURIComponent(guildId)}/settings`,
-        {
-          method: 'PATCH',
-          credentials: 'include',
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            locale: settings.locale,
-            timezone: settings.timezone,
-            prefix: prefix.trim() || null,
-          }),
-        },
-      );
+      const response = await fetch(`${apiBase}/guilds/${encodeURIComponent(guildId)}/settings`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locale: settings.locale,
+          timezone: settings.timezone,
+          prefix: prefix.trim() || null,
+        }),
+      });
       if (!response.ok) throw new Error(await readApiError(response));
       const body = (await response.json()) as { data: GuildSettings };
       setSettings(body.data);
@@ -108,26 +106,44 @@ export default function GuildSettingsPage() {
   return (
     <main className="settings-page">
       <header className="settings-header">
-        <a className="brand" href="/"><span className="brand-mark">V</span> VREEO</a>
-        <a className="settings-back" href="/">← Back to servers</a>
+        <a className="brand" href="/">
+          <span className="brand-mark">V</span> VREEO
+        </a>
+        <a className="settings-back" href="/">
+          ← Back to servers
+        </a>
       </header>
       <section className="settings-content">
         <p className="eyebrow">SERVER CONFIGURATION</p>
         <h1>Server settings</h1>
         <p className="muted">Configure the basic defaults used by VREEO for this Discord server.</p>
-        <div className="guild-id-chip">Server ID <code>{guildId}</code></div>
+        <div className="guild-id-chip">
+          Server ID <code>{guildId}</code>
+        </div>
 
         {loading ? (
-          <div className="settings-card"><p className="muted">Loading settings and verifying server access…</p></div>
+          <div className="settings-card">
+            <p className="muted">Loading settings and verifying server access…</p>
+          </div>
         ) : (
           <form className="settings-card" onSubmit={saveSettings}>
-            {error && <div className="error-banner" role="alert">{error}</div>}
-            {saved && <div className="success-banner" role="status">{saved}</div>}
+            {error && (
+              <div className="error-banner" role="alert">
+                {error}
+              </div>
+            )}
+            {saved && (
+              <div className="success-banner" role="status">
+                {saved}
+              </div>
+            )}
             <label className="settings-field">
               <span>Default locale</span>
               <select
                 value={settings.locale}
-                onChange={(event) => setSettings((current) => ({ ...current, locale: event.target.value }))}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, locale: event.target.value }))
+                }
                 required
               >
                 <option value="en-US">English (US)</option>
@@ -142,7 +158,9 @@ export default function GuildSettingsPage() {
               <span>Time zone</span>
               <input
                 value={settings.timezone}
-                onChange={(event) => setSettings((current) => ({ ...current, timezone: event.target.value }))}
+                onChange={(event) =>
+                  setSettings((current) => ({ ...current, timezone: event.target.value }))
+                }
                 placeholder="Asia/Jakarta"
                 maxLength={64}
                 required
@@ -157,15 +175,26 @@ export default function GuildSettingsPage() {
                 placeholder="!"
                 maxLength={20}
               />
-              <small>Optional. Slash commands remain the primary command interface in VREEO V1.</small>
+              <small>
+                Optional. Slash commands remain the primary command interface in VREEO V1.
+              </small>
             </label>
             <div className="settings-actions">
-              <span className="muted">{settings.updatedAt ? `Last saved ${new Date(settings.updatedAt).toLocaleString()}` : 'Using default settings'}</span>
-              <button className="settings-save" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+              <span className="muted">
+                {settings.updatedAt
+                  ? `Last saved ${new Date(settings.updatedAt).toLocaleString()}`
+                  : 'Using default settings'}
+              </span>
+              <button className="settings-save" type="submit" disabled={saving}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
             </div>
           </form>
         )}
-        <p className="settings-security">Changes are authorized against your current Discord Manage Server permissions and written to the audit log.</p>
+        <p className="settings-security">
+          Changes are authorized against your current Discord Manage Server permissions and written
+          to the audit log.
+        </p>
       </section>
     </main>
   );

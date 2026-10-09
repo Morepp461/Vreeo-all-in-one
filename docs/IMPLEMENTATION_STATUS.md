@@ -19,7 +19,7 @@ This branch builds on `feat/database-foundation`. It is not a production release
 ### Not implemented yet
 
 - BullMQ queue/worker runtime, bounded retries/backoff, dead-letter queue, and idempotent job enqueue.
-- Redis-backed API rate limiting and full readiness integration.
+- Redis-backed API rate limiting and PostgreSQL/Redis readiness checks are now wired into API startup; full integration tests remain pending CI.
 - Metrics and production observability.
 - Domain repositories and the Moderation Warn vertical slice.
 - OAuth2/session auth, guild context, permissions/entitlements, dashboard/admin, and Discord command/event routing.

@@ -68,7 +68,7 @@ export async function addIdempotentJob<TData>(
   options: JobsOptions = {},
 ) {
   // BullMQ's typed-job-map overload narrows names from the payload type; this generic helper intentionally accepts arbitrary names.
-  return queue.add(jobName as never, data, {
+  return queue.add(jobName as never, data as never, {
     ...options,
     jobId: createIdempotentJobId(queue.name, idempotencyKey),
   });

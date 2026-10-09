@@ -1,12 +1,13 @@
 import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
+import { prisma } from '@vreeo/database/client';
 import { commandMap } from './commands/index.js';
 import { markGuildLeft, syncGuild } from './services/guild-sync.js';
 import { getBotToken } from './config.js';
 
 const token = getBotToken();
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.AutoModerationExecution],
   allowedMentions: { parse: [], repliedUser: false },
 });
 
@@ -45,6 +46,46 @@ client.on('guildDelete', (guild) => {
       error instanceof Error ? error.message : 'Unknown error',
     );
   });
+});
+
+client.on('autoModerationActionExecution', async (execution) => {
+  try {
+    const guild = await syncGuild(execution.guild);
+    const metadata = {
+      ruleId: execution.ruleId,
+      channelId: execution.channelId,
+      triggerType: execution.ruleTriggerType,
+      matchedKeyword: execution.matchedKeyword,
+    };
+    await prisma.$transaction([
+      prisma.securityEvent.create({
+        data: {
+          guildId: guild.id,
+          eventType: 'automod_action',
+          severity: 'medium',
+          actorDiscordUserId: execution.userId,
+          targetDiscordId: execution.userId,
+          metadata,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          guildId: guild.id,
+          actorDiscordUserId: execution.userId,
+          action: 'automod.action_executed',
+          resourceType: 'automod_rule',
+          resourceId: execution.ruleId,
+          newValue: metadata,
+          source: 'discord_bot',
+        },
+      }),
+    ]);
+  } catch (error) {
+    console.error(
+      'AutoMod execution logging failed:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
+  }
 });
 
 client.on('interactionCreate', async (interaction) => {

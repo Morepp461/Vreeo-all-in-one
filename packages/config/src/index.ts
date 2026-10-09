@@ -53,6 +53,11 @@ const apiSchema = baseSchema.extend({
   if (value.NODE_ENV === "production" && !value.SESSION_COOKIE_SECURE) context.addIssue({ code: z.ZodIssueCode.custom, path: ["SESSION_COOKIE_SECURE"], message: "must be true in production" });
   if (value.SESSION_COOKIE_SAME_SITE === "none" && !value.SESSION_COOKIE_SECURE) context.addIssue({ code: z.ZodIssueCode.custom, path: ["SESSION_COOKIE_SECURE"], message: "must be true when SameSite=None" });
 });
+const botSchema = baseSchema.extend({
+  DISCORD_TOKEN: z.string().trim().min(1, "DISCORD_TOKEN is required to run the bot"),
+  DISCORD_CLIENT_ID: z.string().trim().optional(),
+  DISCORD_DEV_GUILD_ID: z.string().trim().optional(),
+});
 
 type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
 type BaseConfig = { nodeEnv: "development" | "test" | "production"; logLevel: LogLevel };

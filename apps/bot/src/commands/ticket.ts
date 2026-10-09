@@ -279,6 +279,7 @@ export const ticketCommand: VreeoCommand = {
             data: {
               guildId: guildRecord.id,
               ticketNumber,
+              sourceInteractionId: interaction.id,
               openerDiscordUserId: interaction.user.id,
               subject,
               status: 'creating',
@@ -382,6 +383,24 @@ export const ticketCommand: VreeoCommand = {
         });
         await interaction.editReply(`Your ticket has been opened: <#${channel.id}>`);
       } catch (error) {
+        if (!ticket) {
+          const existingRequest = await prisma.ticket
+            .findUnique({
+              where: { sourceInteractionId: interaction.id },
+              select: { ticketNumber: true, channelDiscordId: true, status: true },
+            })
+            .catch(() => null);
+          if (existingRequest) {
+            const message =
+              existingRequest.status === 'failed'
+                ? 'This ticket request already failed. Please start a new ticket request.'
+                : existingRequest.channelDiscordId
+                  ? `This ticket request was already processed: <#${existingRequest.channelDiscordId}>.`
+                  : 'This ticket request is already being processed. Please wait a moment.';
+            await interaction.editReply({ content: message, allowedMentions: { parse: [] } });
+            return;
+          }
+        }
         if (channelId) {
           await guild.channels
             .delete(channelId, 'VREEO ticket database persistence failed')

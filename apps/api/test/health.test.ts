@@ -15,10 +15,10 @@ describe('API health and readiness', () => {
     expect(response.json()).toMatchObject({ status: 'ok', service: 'vreeo-api' });
   });
 
-  it('fails closed while dependency readiness checks are not implemented', async () => {
+  it('reports ready only when PostgreSQL is reachable', async () => {
     const response = await app.inject({ method: 'GET', url: '/ready' });
 
-    expect(response.statusCode).toBe(503);
-    expect(response.json()).toHaveProperty('status', 'not_ready');
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'ready', dependencies: { database: 'ok' } });
   });
 });

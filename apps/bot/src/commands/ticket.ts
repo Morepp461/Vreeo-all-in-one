@@ -14,26 +14,24 @@ function readObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function readTicketSettings(
-  config: unknown,
-  staffRoleId: string | null | undefined,
-): TicketSettings {
+function readTicketSettings(config: unknown): TicketSettings {
   const object = readObject(config);
   const category = object.ticketCategoryId;
+  const staffRole = object.ticketStaffRoleId;
   return {
     ticketCategoryId:
       typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
     staffRoleId:
-      typeof staffRoleId === 'string' && /^\d{17,20}$/.test(staffRoleId) ? staffRoleId : null,
+      typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
   };
 }
 
 async function loadTicketSettings(guildId: string): Promise<TicketSettings> {
-  const settings = await prisma.guildSettings.findUnique({
-    where: { guildId },
-    select: { config: true, defaultStaffRoleId: true },
+  const feature = await prisma.guildFeature.findUnique({
+    where: { guildId_featureKey: { guildId, featureKey: 'tickets' } },
+    select: { config: true },
   });
-  return readTicketSettings(settings?.config, settings?.defaultStaffRoleId);
+  return readTicketSettings(feature?.config);
 }
 
 function isStaff(interaction: Parameters<VreeoCommand['execute']>[0], staffRoleId: string | null) {
@@ -85,6 +83,12 @@ export const ticketCommand: VreeoCommand = {
           option
             .setName('staff_role')
             .setDescription('Optional role that can view and manage tickets.')
+            .setRequired(false),
+        )
+        .addBooleanOption((option) =>
+          option
+            .setName('clear_staff_role')
+            .setDescription('Remove the currently configured ticket staff role.')
             .setRequired(false),
         ),
     )
@@ -159,24 +163,33 @@ export const ticketCommand: VreeoCommand = {
 
       await interaction.deferReply({ ephemeral: true });
       try {
-        const current = await prisma.guildSettings.findUnique({
-          where: { guildId: guildRecord.id },
-          select: { config: true, defaultStaffRoleId: true },
+        const current = await prisma.guildFeature.findUnique({
+          where: { guildId_featureKey: { guildId: guildRecord.id, featureKey: 'tickets' } },
+          select: { config: true },
         });
+        const currentSettings = readTicketSettings(current?.config);
+        const clearStaffRole = interaction.options.getBoolean('clear_staff_role') ?? false;
+        if (staffRole && clearStaffRole) {
+          await interaction.editReply('Choose a staff role or clear the existing one, not both.');
+          return;
+        }
+        const nextStaffRoleId = staffRole?.id ?? (clearStaffRole ? null : currentSettings.staffRoleId);
         const config = JSON.parse(
-          JSON.stringify({ ...readObject(current?.config), ticketCategoryId: category.id }),
+          JSON.stringify({
+            ...readObject(current?.config),
+            ticketCategoryId: category.id,
+            ticketStaffRoleId: nextStaffRoleId,
+          }),
         );
-        await prisma.guildSettings.upsert({
-          where: { guildId: guildRecord.id },
+        await prisma.guildFeature.upsert({
+          where: { guildId_featureKey: { guildId: guildRecord.id, featureKey: 'tickets' } },
           create: {
             guildId: guildRecord.id,
+            featureKey: 'tickets',
+            enabled: true,
             config,
-            defaultStaffRoleId: staffRole?.id ?? null,
           },
-          update: {
-            config,
-            defaultStaffRoleId: staffRole?.id ?? null,
-          },
+          update: { enabled: true, config },
         });
         await writeTicketAudit({
           guildId: guildRecord.id,
@@ -185,11 +198,11 @@ export const ticketCommand: VreeoCommand = {
           ticketId: guildRecord.id,
           newValue: {
             ticketCategoryId: category.id,
-            staffRoleId: staffRole?.id ?? null,
+            staffRoleId: nextStaffRoleId,
           },
         });
         await interaction.editReply(
-          `Ticket category set to **${category.name}**${staffRole ? ` and staff role set to <@&${staffRole.id}>` : ''}.`,
+          `Ticket category set to **${category.name}**${nextStaffRoleId ? ` and staff role set to <@&${nextStaffRoleId}>` : ''}.`,
         );
       } catch (error) {
         console.error(

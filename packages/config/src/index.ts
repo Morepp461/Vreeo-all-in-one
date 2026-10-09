@@ -18,7 +18,11 @@ const optionalNonEmptyString = z.preprocess(
 );
 const optionalUrl = z.preprocess(
   (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
-  z.string().url().optional(),
+  z.string().url().refine((value) => {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") &&
+      url.username.length === 0 && url.password.length === 0 && url.hash.length === 0;
+  }, "must be an HTTP(S) redirect URL without credentials or fragments").optional(),
 );
 const appBaseUrlSchema = z.string().url().refine((value) => {
   const protocol = new URL(value).protocol;

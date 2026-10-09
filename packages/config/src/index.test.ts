@@ -54,6 +54,21 @@ describe("environment configuration", () => {
     expect(config.sessionCookieName).toBe("vreeo_session");
   });
 
+  it("rejects non-HTTP OAuth redirect URIs and redirect fragments", () => {
+    expect(() => loadApiConfig({
+      ...localApiEnvironment,
+      DISCORD_CLIENT_ID: "client",
+      DISCORD_CLIENT_SECRET: "secret",
+      DISCORD_REDIRECT_URI: "ftp://app.example/callback",
+    })).toThrow(/DISCORD_REDIRECT_URI/);
+    expect(() => loadApiConfig({
+      ...localApiEnvironment,
+      DISCORD_CLIENT_ID: "client",
+      DISCORD_CLIENT_SECRET: "secret",
+      DISCORD_REDIRECT_URI: "http://localhost/callback#fragment",
+    })).toThrow(/DISCORD_REDIRECT_URI/);
+  });
+
   it("requires OAuth settings as a complete set and secure cookies in production", () => {
     expect(() => loadApiConfig({ ...localApiEnvironment, DISCORD_CLIENT_ID: "client", NODE_ENV: "test" })).toThrow(/must be configured together/);
     expect(() => loadApiConfig({

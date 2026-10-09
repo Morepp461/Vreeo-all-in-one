@@ -21,7 +21,7 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 
 ### Verification
 
-Infrastructure and shared package gates previously passed. The auth/session branch has CI running against the current commit; do not treat OAuth integration as verified until that run passes. Live Discord OAuth has not been exercised because no real client credentials are configured.
+Infrastructure and shared package gates previously passed. The auth/session branch passed CI on `4f47c84191d742315d155000c26600f46e5b76e6`, including build, typecheck, database migrations/schema drift, seed idempotency, and the auth/session route tests. Live Discord OAuth has not been exercised because no real client credentials are configured.
 
 ### Next sequence
 

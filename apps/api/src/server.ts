@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -90,7 +91,10 @@ const entrypoint = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).hre
 if (entrypoint === import.meta.url) {
   const app = buildServer();
   app.listen({ host: env.API_HOST, port: env.API_PORT }).catch((error: unknown) => {
-    app.log.error({ errorName: error instanceof Error ? error.name : 'unknown' }, 'API failed to start');
+    app.log.error(
+      { errorName: error instanceof Error ? error.name : 'unknown' },
+      'API failed to start',
+    );
     process.exitCode = 1;
   });
 }

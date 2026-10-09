@@ -342,7 +342,7 @@ export default function HomePage() {
                     className="guild-action"
                     href={
                       process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID
-                        ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID)}&permissions=1099511712838&scope=bot%20applications.commands&guild_id=${encodeURIComponent(guild.id)}&disable_guild_select=true`
+                        ? `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID)}&permissions=1099511712870&scope=bot%20applications.commands&guild_id=${encodeURIComponent(guild.id)}&disable_guild_select=true`
                         : 'https://discord.com/developers/applications'
                     }
                     target="_blank"

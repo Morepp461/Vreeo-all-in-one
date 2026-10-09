@@ -19,6 +19,10 @@ export const helpCommand: VreeoCommand = {
           name: 'Server tools',
           value: '`/serverinfo` — view server information\n`/userinfo` — view a member profile\n`/avatar` — view a member avatar\n`/poll` — create a reaction-based poll',
         },
+        {
+          name: 'Moderation',
+          value: '`/warn` — issue a warning\n`/timeout` — temporarily restrict a member\n`/kick` — remove a member\n`/ban` — ban a user',
+        },
       )
       .setFooter({ text: 'VREEO • AI is not part of V1' });
     await interaction.reply({ embeds: [embed], ephemeral: true });

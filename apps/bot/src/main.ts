@@ -99,14 +99,13 @@ client.on('interactionCreate', async (interaction) => {
           'Ticket panel handler failed:',
           error instanceof Error ? error.message : 'Unknown error',
         );
-        const payload = {
-          content: 'VREEO could not process this ticket panel. Please try again later.',
-          ephemeral: true,
-        };
-        if (interaction.deferred || interaction.replied) {
-          await interaction.followUp(payload).catch(() => undefined);
+        const content = 'VREEO could not process this ticket panel. Please try again later.';
+        if (interaction.deferred && !interaction.replied) {
+          await interaction.editReply({ content }).catch(() => undefined);
+        } else if (interaction.replied) {
+          await interaction.followUp({ content, ephemeral: true }).catch(() => undefined);
         } else {
-          await interaction.reply(payload).catch(() => undefined);
+          await interaction.reply({ content, ephemeral: true }).catch(() => undefined);
         }
       }
     }

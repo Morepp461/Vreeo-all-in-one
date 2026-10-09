@@ -10,7 +10,7 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "prettier --check .",
+    "lint": "prettier --check package.json pnpm-workspace.yaml turbo.json tsconfig.base.json .prettierrc.json",
     "format": "prettier --write .",
     "clean": "turbo run clean"
   },

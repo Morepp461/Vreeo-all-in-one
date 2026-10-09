@@ -1,4 +1,4 @@
-import { EmbedBuilder, SlashCommandBuilder, User } from 'discord.js';
+import { EmbedBuilder, SlashCommandBuilder, type User } from 'discord.js';
 import type { VreeoCommand } from './types.js';
 
 export const userInfoCommand: VreeoCommand = {

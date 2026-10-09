@@ -483,6 +483,7 @@ export const ticketCommand: VreeoCommand = {
         status: true,
         subject: true,
         closeReason: true,
+        updatedAt: true,
       },
     });
     if (!ticket || !ticket.channelDiscordId) {
@@ -510,27 +511,36 @@ export const ticketCommand: VreeoCommand = {
           `This ticket is already claimed by <@${ticket.claimedByDiscordUserId}>.`,
         );
       }
-      const result = await prisma.ticket.updateMany({
-        where: {
-          id: ticket.id,
-          status: { in: ['open', 'claimed'] },
-          OR: [{ claimedByDiscordUserId: null }, { claimedByDiscordUserId: interaction.user.id }],
-        },
-        data: { status: 'claimed', claimedByDiscordUserId: interaction.user.id },
+      const claimed = await prisma.$transaction(async (tx) => {
+        const result = await tx.ticket.updateMany({
+          where: {
+            id: ticket.id,
+            status: { in: ['open', 'claimed'] },
+            OR: [{ claimedByDiscordUserId: null }, { claimedByDiscordUserId: interaction.user.id }],
+          },
+          data: { status: 'claimed', claimedByDiscordUserId: interaction.user.id },
+        });
+        if (result.count !== 1) return false;
+        await tx.auditLog.create({
+          data: {
+            guildId: guildRecord.id,
+            actorDiscordUserId: interaction.user.id,
+            action: 'ticket.claimed',
+            resourceType: 'ticket',
+            resourceId: ticket.id,
+            oldValue: { claimedByDiscordUserId: ticket.claimedByDiscordUserId },
+            newValue: { claimedByDiscordUserId: interaction.user.id, status: 'claimed' },
+            source: 'discord_bot',
+          },
+        });
+        return true;
       });
-      if (result.count !== 1)
+      if (!claimed) {
         return ticketFailure(
           interaction,
           'Another staff member claimed this ticket first. Refresh and try again.',
         );
-      await writeTicketAudit({
-        guildId: guildRecord.id,
-        actorId: interaction.user.id,
-        action: 'ticket.claimed',
-        ticketId: ticket.id,
-        oldValue: { claimedByDiscordUserId: ticket.claimedByDiscordUserId },
-        newValue: { claimedByDiscordUserId: interaction.user.id, status: 'claimed' },
-      });
+      }
       await interaction.editReply({
         content: `Ticket #${ticket.ticketNumber.toString()} claimed by <@${interaction.user.id}>`,
         allowedMentions: { parse: [] },
@@ -563,7 +573,26 @@ export const ticketCommand: VreeoCommand = {
             : 'open'
           : ticket.status;
       const closedAt = new Date();
-      if (ticket.status !== 'closing') {
+      const staleTransitionBefore = new Date(Date.now() - 2 * 60 * 1000);
+      if (ticket.status === 'closing') {
+        if (ticket.updatedAt > staleTransitionBefore) {
+          return ticketFailure(
+            interaction,
+            'A ticket close operation is already in progress. Try again in a moment.',
+          );
+        }
+        const recovery = await prisma.ticket.updateMany({
+          where: {
+            id: ticket.id,
+            status: 'closing',
+            updatedAt: { lt: staleTransitionBefore },
+          },
+          data: { status: 'closing', updatedAt: new Date() },
+        });
+        if (recovery.count !== 1) {
+          return ticketFailure(interaction, 'Another ticket action is already in progress. Try again.');
+        }
+      } else {
         const transition = await prisma.ticket.updateMany({
           where: { id: ticket.id, status: { in: ['open', 'claimed'] } },
           data: { status: 'closing' },
@@ -629,7 +658,14 @@ export const ticketCommand: VreeoCommand = {
             data: { status: previousStatus },
           })
           .catch(() => undefined);
-        throw error;
+        console.error(
+          'Ticket close failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        return ticketFailure(
+          interaction,
+          'Ticket could not be closed. Try again or ask an administrator to reconcile this ticket.',
+        );
       }
 
       await channel
@@ -668,7 +704,26 @@ export const ticketCommand: VreeoCommand = {
         return ticketFailure(interaction, 'Only closed tickets can be reopened.');
       }
 
-      if (ticket.status !== 'reopening') {
+      const staleTransitionBefore = new Date(Date.now() - 2 * 60 * 1000);
+      if (ticket.status === 'reopening') {
+        if (ticket.updatedAt > staleTransitionBefore) {
+          return ticketFailure(
+            interaction,
+            'A ticket reopen operation is already in progress. Try again in a moment.',
+          );
+        }
+        const recovery = await prisma.ticket.updateMany({
+          where: {
+            id: ticket.id,
+            status: 'reopening',
+            updatedAt: { lt: staleTransitionBefore },
+          },
+          data: { status: 'reopening', updatedAt: new Date() },
+        });
+        if (recovery.count !== 1) {
+          return ticketFailure(interaction, 'Another ticket action is already in progress. Try again.');
+        }
+      } else {
         const transition = await prisma.ticket.updateMany({
           where: { id: ticket.id, status: 'closed' },
           data: { status: 'reopening' },
@@ -753,7 +808,14 @@ export const ticketCommand: VreeoCommand = {
             data: { status: 'closed' },
           })
           .catch(() => undefined);
-        throw error;
+        console.error(
+          'Ticket reopen failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        return ticketFailure(
+          interaction,
+          'Ticket could not be reopened. Try again or ask an administrator to reconcile this ticket.',
+        );
       }
 
       await channel

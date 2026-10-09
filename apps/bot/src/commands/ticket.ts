@@ -21,8 +21,7 @@ function readTicketSettings(config: unknown): TicketSettings {
   return {
     ticketCategoryId:
       typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
-    staffRoleId:
-      typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
+    staffRoleId: typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
   };
 }
 
@@ -173,7 +172,8 @@ export const ticketCommand: VreeoCommand = {
           await interaction.editReply('Choose a staff role or clear the existing one, not both.');
           return;
         }
-        const nextStaffRoleId = staffRole?.id ?? (clearStaffRole ? null : currentSettings.staffRoleId);
+        const nextStaffRoleId =
+          staffRole?.id ?? (clearStaffRole ? null : currentSettings.staffRoleId);
         const config = JSON.parse(
           JSON.stringify({
             ...readObject(current?.config),

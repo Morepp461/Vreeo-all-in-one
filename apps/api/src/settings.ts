@@ -25,12 +25,13 @@ const envSchema = z
       .url()
       .default('http://localhost:4000/api/v1/auth/discord/callback'),
     SESSION_SECRET: z.string().trim().min(32).optional(),
+    OAUTH_TOKEN_ENCRYPTION_KEY: z.string().trim().min(32).optional(),
     SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(2_592_000).default(604_800),
   })
   .superRefine((value, context) => {
     if (value.NODE_ENV !== 'production') return;
 
-    for (const key of ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'SESSION_SECRET'] as const) {
+    for (const key of ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET', 'SESSION_SECRET', 'OAUTH_TOKEN_ENCRYPTION_KEY'] as const) {
       if (!value[key]) {
         context.addIssue({
           code: 'custom',

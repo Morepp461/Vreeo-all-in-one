@@ -83,11 +83,12 @@ export async function syncGuildChannels(guild: Guild, database: DatabaseClient, 
     where: { discordGuildId: guild.id }, select: { id: true },
   })).id;
   for (const channel of guild.channels.cache.values()) {
+    const position = "position" in channel && typeof channel.position === "number" ? channel.position : 0;
     await database.guildChannel.upsert({
       where: { guildId_discordChannelId: { guildId, discordChannelId: channel.id } },
       create: {
         guildId, discordChannelId: channel.id, parentDiscordChannelId: channel.parentId,
-        name: channel.name.slice(0, 100), type: String(channel.type), position: channel.position,
+        name: channel.name.slice(0, 100), type: String(channel.type), position,
       },
       update: {
         parentDiscordChannelId: channel.parentId,

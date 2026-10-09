@@ -9,18 +9,22 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @vreeo/api --filter @vreeo/bot dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "pnpm -r lint",
+    "build": "pnpm -r --if-present build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "test": "pnpm -r --if-present test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
-    "clean": "pnpm -r exec rm -rf dist"
+    "clean": "pnpm -r --if-present clean"
   },
   "devDependencies": {
+    "@types/node": "^22.15.30",
     "prettier": "^3.6.2",
-    "typescript": "^5.9.2"
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   }
 }

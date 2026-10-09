@@ -133,6 +133,8 @@ export const ticketCommand: VreeoCommand = {
       return replyFailure(interaction, 'This command only works in a server.');
     }
 
+    await interaction.deferReply({ ephemeral: true });
+
     const subcommand = interaction.options.getSubcommand();
     const guild = interaction.guild;
     const guildRecord = await syncGuild(guild);
@@ -163,7 +165,6 @@ export const ticketCommand: VreeoCommand = {
         );
       }
 
-      await interaction.deferReply({ ephemeral: true });
       try {
         const current = await prisma.guildFeature.findUnique({
           where: { guildId_featureKey: { guildId: guildRecord.id, featureKey: 'tickets' } },
@@ -257,7 +258,6 @@ export const ticketCommand: VreeoCommand = {
         );
       }
 
-      await interaction.deferReply({ ephemeral: true });
       let ticket: { id: string; ticketNumber: bigint } | null = null;
       let channelId: string | null = null;
       try {
@@ -455,7 +455,7 @@ export const ticketCommand: VreeoCommand = {
             : 'There are no active tickets.',
         )
         .setFooter({ text: 'Showing up to 10 active tickets' });
-      await interaction.reply({ embeds: [embed], ephemeral: true, allowedMentions: { parse: [] } });
+      await interaction.editReply({ embeds: [embed], ephemeral: true, allowedMentions: { parse: [] } });
       return;
     }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Logger } from "pino";
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 
 export type RedisConnection = Redis;
 

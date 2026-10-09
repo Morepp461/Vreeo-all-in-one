@@ -107,14 +107,20 @@ if (entrypoint === import.meta.url) {
     app.log.info({ signal }, 'Shutting down API server');
     try {
       await app.close();
-      await prisma.$disconnect();
     } catch (error) {
       app.log.error(
         { errorName: error instanceof Error ? error.name : 'unknown' },
-        'API shutdown failed',
+        'API server close failed',
       );
       process.exitCode = 1;
     }
+    await prisma.$disconnect().catch((error: unknown) => {
+      app.log.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Database disconnect failed during API shutdown',
+      );
+      process.exitCode = 1;
+    });
   };
 
   process.once('SIGINT', () => void shutdown('SIGINT'));

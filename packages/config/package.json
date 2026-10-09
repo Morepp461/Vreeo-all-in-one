@@ -6,7 +6,7 @@
   "exports": { "./env": "./src/env.ts" },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "test": "vitest run"
   },
   "dependencies": { "zod": "^4.1.12" }

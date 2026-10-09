@@ -11,7 +11,7 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Discord OAuth2 authorization-code flow with Redis-backed one-time state, state cookie bound to the initiating browser, opaque HttpOnly session cookies, SHA-256 session-token hashes in PostgreSQL, current-user, logout, and session management.
 - Same-origin protection for cookie-authenticated logout/session revocation; OAuth tokens are used only to fetch identity and are not persisted.
 - Authenticated guild discovery filters to bot-connected guilds where the signed-in user is the owner or has Discord Manage Server/Administrator permissions in the database snapshot.
-- Bot gateway synchronization for guild metadata, roles, channels, member membership, and member-role assignments; departed guild members and bot-removed guilds are marked inactive instead of destructively deleted.
+- Bot gateway synchronization for guild metadata, roles, channels, member membership, and member-role assignments; departed guild members and bot-removed guilds are marked inactive instead of destructively deleted. The bot requests Discord’s privileged Server Members Intent, which must be enabled in the Developer Portal before the bot can connect.
 - Production config requires OAuth credentials, HTTPS redirect/origin, and secure session cookies; development may leave OAuth unconfigured.
 
 ### Still not implemented

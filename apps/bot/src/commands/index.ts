@@ -1,5 +1,6 @@
 import type { VreeoCommand } from './types.js';
 import { avatarCommand } from './avatar.js';
+import { autoModCommand } from './automod.js';
 import { banCommand } from './moderation/ban.js';
 import { caseCommand } from './moderation/case.js';
 import { kickCommand } from './moderation/kick.js';
@@ -19,6 +20,7 @@ export const commands: VreeoCommand[] = [
   userInfoCommand,
   avatarCommand,
   pollCommand,
+  autoModCommand,
   warnCommand,
   timeoutCommand,
   kickCommand,

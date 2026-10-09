@@ -33,7 +33,7 @@ export class PrismaAuthRepository implements AuthRepository {
     return snapshots.flatMap(({ guild, isOwner, permissions }) => {
       let permissionBits: bigint;
       try {
-        if (!/^\\d{1,32}$/.test(permissions)) return [];
+        if (!/^\d{1,32}$/.test(permissions)) return [];
         permissionBits = BigInt(permissions);
       } catch {
         return [];

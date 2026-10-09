@@ -1,38 +1,32 @@
 # Implementation Status
 
-## Current stage: shared domain foundations
+## Current stage: authentication and session foundation
 
-This branch builds on `feat/redis-queue-foundation`. It is not a production release and has not been merged into `main`.
+This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
 
-### Implemented
+### Implemented foundations
 
-- pnpm workspace and CI foundation; PostgreSQL migrations and schema-drift verification.
-- Fastify API and Discord gateway process skeletons.
-- Redis cache/cooldown/lock/readiness primitives, BullMQ queue/worker policy, payload-free dead-letter records, and TTL-backed idempotent enqueue.
-- Provider-neutral object-storage interface.
-- Shared domain identifiers for permission keys, feature keys, plan keys, subscription states, API error codes, authorization reasons, and internal event envelope types.
-- Central permission evaluation with deterministic override precedence, Discord capability/hierarchy gates, server-resolved guild-context isolation, and server-loaded role permission sets.
-- Entitlement resolution with explicit source precedence, expiry handling, subscription-state checks, and no hardcoded plan-to-feature mapping.
-- Discord REST service boundary with normalized errors and bot role-hierarchy/permission guards.
-- Internal event envelope creation/validation based on the source event contract.
+- Workspace, CI, PostgreSQL schema/migrations, Redis, BullMQ, and object-storage abstraction.
+- Shared domain types, permission evaluation, entitlement resolution, Discord REST wrapper, and internal event contract.
+- Discord OAuth2 authorization-code flow with Redis-backed one-time state, state cookie bound to the initiating browser, opaque HttpOnly session cookies, SHA-256 session-token hashes in PostgreSQL, current-user, logout, and session management.
+- Same-origin protection for cookie-authenticated logout/session revocation; OAuth tokens are used only to fetch identity and are not persisted.
+- Production config requires OAuth credentials, HTTPS redirect/origin, and secure session cookies; development may leave OAuth unconfigured.
 
-### Important constraints
+### Still not implemented
 
-- Default role profiles are conceptual presets in the source; a complete per-permission matrix is not specified. The permissions package accepts profile permissions from policy/configuration rather than inventing grants.
-- Plan-to-feature tier assignments are controlled by the Master Feature Map and remain data-driven; no Free/Premium/Premium+ mapping is hardcoded here.
-- Entitlement source precedence must be supplied explicitly because the source does not settle precedence among all manual grants, promotions, trials, and internal overrides.
-- `grace` subscription access requires an explicit policy. `past_due`, `expired`, and unspecified subscription states fail closed.
-- Redis lock lease renewal, durable event outbox/dispatch, worker process registration, and domain-specific job handlers remain future work.
-- No object-storage provider is selected.
+- Live guild discovery and tenant-scoped guild access middleware.
+- Database-backed permission/profile and entitlement policy loaders.
+- Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
+- OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
 
 ### Verification
 
-Infrastructure CI passed on `f774833f6b456029267cc3359dcd4be882dbfcf1`. Shared type/permission/entitlement packages passed CI on `83990171a33ede414070e8253359bbfbd67f6115`. Discord REST and event contract additions in this commit are awaiting CI.
+Infrastructure and shared package gates previously passed. The auth/session branch has CI running against the current commit; do not treat OAuth integration as verified until that run passes. Live Discord OAuth has not been exercised because no real client credentials are configured.
 
 ### Next sequence
 
-1. Verify shared packages and Discord/event contract tests.
-2. Add Discord command registry and interaction/event routers with failure-safe handling.
-3. Implement OAuth2/session and guild-access services from the API/security specifications.
-4. Wire permission and entitlement packages to database-backed policy loaders.
-5. Build Moderation Warn end-to-end with idempotency, case/warning persistence, audit logging, API/bot handlers, and tests.
+1. Verify auth state-cookie binding, callback replay protection, session hash storage, logout CSRF checks, and session listing.
+2. Implement live guild discovery and tenant-scoped guild-context middleware.
+3. Wire permission and entitlement packages to database-backed policy loaders.
+4. Add bot command registry and interaction/event routers.
+5. Implement Moderation Warn end-to-end and expand the remaining MVP features.

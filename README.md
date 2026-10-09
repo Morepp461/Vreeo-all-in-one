@@ -30,7 +30,7 @@ apps/
   admin/        Internal admin application (not implemented yet)
 packages/
   config/       Shared environment validation
-  database/     Prisma schema, migrations, and repositories (not implemented yet)
+  database/     Prisma schema, core migration, seed, and client boundary
   discord/      Shared Discord adapters (not implemented yet)
   entitlements/ Feature availability and plan rules (not implemented yet)
   events/       Internal event contracts/bus (not implemented yet)
@@ -53,11 +53,13 @@ docs/
 ## Getting started
 
 1. Install dependencies: `pnpm install`
-2. Copy `.env.example` to `.env` and fill in Discord credentials if running the bot.
+2. Copy `.env.example` to `.env`.
 3. Start local infrastructure: `pnpm infra:up`
-4. Start the API and bot: `pnpm dev`
+4. Apply migrations: `pnpm --filter @vreeo/database migrate:deploy`
+5. Seed the baseline plan records: `pnpm --filter @vreeo/database seed`
+6. Fill in a valid `DISCORD_TOKEN` if running the bot, then use `pnpm dev`.
 
-The API exposes `GET /health` for liveness. `GET /health/ready` deliberately returns HTTP 503 until PostgreSQL, Redis, and queue readiness checks are wired in. The bot requires a valid `DISCORD_TOKEN`. Commands, persistence, authentication, and dashboard features are not implemented yet.
+The API exposes `GET /health` for liveness. `GET /health/ready` deliberately returns HTTP 503 until PostgreSQL, Redis, and queue readiness checks are wired in. The bot requires a valid `DISCORD_TOKEN`. Commands, authentication, and dashboard features are not implemented yet.
 
 ## Security
 

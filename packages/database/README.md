@@ -18,6 +18,8 @@ Set `DATABASE_URL` in the environment or local `.env` before validation/migratio
 
 The first migration covers identity, guild state, role/permission mappings, moderation cases/warnings/appeals, plans/plan features, feature flags, audit logs, and idempotency records. Further feature tables must be added through reviewed, versioned migrations—not by editing an already-applied migration.
 
-The source database specification marks some fields nullable explicitly and leaves nullability implicit for others. This first schema follows the document's explicit field contract; fields whose nullability is not fully specified remain a specification-review item before those fields are used as hard product invariants. The migration does not add cascading deletes for guild, moderation, audit, or financial records.
+Nullability convention: fields explicitly marked `NULL` in the source field lists are nullable; other listed fields are required in this initial interpretation. If the source specification is revised to change that convention, update the source and add a migration before using affected fields as product invariants. The migration does not add cascading deletes for guild, moderation, audit, or financial records.
+
+The active guild-member-role uniqueness invariant is enforced by a PostgreSQL partial unique index (`removed_at IS NULL`), kept in the migration because Prisma schema syntax cannot represent the partial predicate.
 
 Session values are stored as hashes/opaque identifiers, not raw browser session secrets. API keys and OAuth application secrets are not part of this first migration.

@@ -57,6 +57,12 @@ jobs:
       - name: Apply database migrations
         run: pnpm --filter @vreeo/database migrate:deploy
 
+      - name: Seed baseline plans
+        run: pnpm --filter @vreeo/database seed
+
+      - name: Verify seed is idempotent
+        run: pnpm --filter @vreeo/database seed
+
       - name: Check database schema drift
         run: pnpm --filter @vreeo/database exec prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-url "$DATABASE_URL" --exit-code
 

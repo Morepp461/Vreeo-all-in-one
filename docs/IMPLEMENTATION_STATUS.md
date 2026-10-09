@@ -1,47 +1,46 @@
 # Implementation Status
 
-## Current stage: core application foundation
+## Current stage: core persistence foundation
 
-This branch builds on `feat/foundation-bootstrap`. It is not a production release and has not been merged into `main`.
+This branch builds on `feat/core-infrastructure`. It is not a production release and has not been merged into `main`.
 
-### Implemented in this stage
+### Implemented
 
-- Minimal Fastify API application with request IDs, Helmet, global rate limiting, and consistent error responses.
-- Liveness endpoint at `GET /health`.
-- Readiness endpoint at `GET /health/ready` that returns HTTP 503 until real dependency checks are registered; it does not falsely claim PostgreSQL/Redis/queue readiness.
-- Minimal discord.js gateway process with graceful shutdown and safe mention defaults.
-- Shared Zod environment validation for API and bot startup.
-- Shared Pino logger with secret-field redaction.
-- Unit tests for environment parsing and API health/error behavior.
-- Initial GitHub Actions verification workflow.
+- pnpm workspace, strict TypeScript settings, editor/repository hygiene, and local PostgreSQL/Redis Compose configuration.
+- Fastify API foundation with request IDs, Helmet, rate limiting, consistent errors, liveness, and fail-closed readiness.
+- discord.js gateway process with graceful shutdown and safe mention defaults.
+- Shared Zod environment validation and Pino logging with secret-field redaction.
+- Prisma core schema and versioned PostgreSQL migration for identity, guild state, role/permission mappings, moderation cases/warnings/appeals, plans/plan features, feature flags, audit logs, and idempotency records.
+- Idempotent baseline plan seed for the documented `free`, `premium`, and `premium_plus` plan keys.
+- GitHub Actions CI with an ephemeral PostgreSQL service, Prisma validation, migration deployment, schema-drift check, typecheck, tests, and build.
 
 ### Explicitly not implemented yet
 
-- PostgreSQL client, Prisma schema/migrations/repositories/seeds.
-- Redis client and cache/cooldown/rate-limit/lock/session adapters.
-- Queue/worker and idempotent job execution.
+- Redis client, cache/cooldown/rate-limit/lock/session adapters, queue/worker, retry/backoff/dead-letter handling.
+- Domain repository/service layer and the Moderation Warn vertical slice.
+- Remaining MVP database tables for AutoMod, security events/lockdowns, welcome/verification/leveling, tickets/forms/role menus, subscriptions/entitlements/payments.
 - Discord command registry, interaction/event routers, REST abstraction, and command deployment.
-- Authentication, OAuth2, sessions, guild access/context, authorization, and entitlements.
+- OAuth2, sessions/authentication flow, guild access/context, authorization, and entitlement enforcement.
 - Dashboard/admin applications and product features.
-- Committed dependency lockfile and verified green CI.
+- Committed pnpm lockfile and production deployment configuration.
 
 ### Review notes
 
-- The source specifications use both `packages/entitlements` (Technical Architecture) and `packages/premium` (Implementation Execution Plan/Engineering Backlog). The architecture and current repository layout use `packages/entitlements`; keep that name unless a specification change explicitly resolves the discrepancy.
-- The repository currently uses Fastify as the API framework, matching the current README direction. NestJS remains an allowed alternative in the architecture document, not a reason to rewrite the API.
-- The current API readiness check intentionally fails closed until PostgreSQL, Redis, and queue health checks are wired in a later stage.
-- The CI workflow currently allows lockfile generation because no pnpm lockfile exists yet. A committed lockfile and frozen install are required before calling builds reproducible or release-ready.
-- Root development/test/typecheck scripts build shared packages first because app packages resolve their generated package entrypoints.
+- The source specifications use both `packages/entitlements` (Technical Architecture) and `packages/premium` (Implementation Execution Plan/Engineering Backlog). The architecture and existing repository layout use `packages/entitlements`; keep that name unless a specification change explicitly resolves the discrepancy.
+- The API framework remains Fastify, matching the repository direction; NestJS is an allowed alternative in the architecture source, not a reason to rewrite the existing API.
+- Readiness intentionally fails closed until PostgreSQL, Redis, and queue checks are registered.
+- The active guild-member-role uniqueness invariant is implemented as a PostgreSQL partial unique index in the migration, since the Prisma schema DSL cannot express that predicate directly.
+- The initial database schema follows the source field-list convention: fields explicitly marked `NULL` are nullable; other fields are required. If the source specification intends a different nullability rule, update the source specification and add a migration before using those fields as product invariants.
+- A committed lockfile and frozen install are still required before builds can be considered fully reproducible or release-ready.
 
-### Verification status
+### Verification
 
-GitHub Actions successfully installed the workspace dependencies on the previous CI attempt, then TypeScript checking failed. That failure exposed Fastify logger typing and error narrowing issues; fixes are now committed, but a CI run against the latest commit is still required. Tests, full build, Docker startup, database migrations, and a live Discord connection have not yet been verified. Do not interpret this branch as production-ready.
+GitHub Actions passed on the core-infrastructure branch for TypeScript checks, tests, and build. On this database branch, Prisma schema validation, migration deployment against ephemeral PostgreSQL, schema-drift check, typecheck, and build have passed on commit `5ce8f3167389b72fbfe19db2360443835a3443a8`. The final seed step is being added to CI and must pass before this database stage is considered complete. Docker Compose startup and live Discord connection have not been verified.
 
 ### Next sequence
 
-1. Get the API/bot foundation through green CI and review the actual build/test output.
-2. Deep-review and implement the database schema/migration foundation against the source database specification.
-3. Add Redis/queue primitives and real readiness checks.
-4. Add the bot command/event lifecycle and API module boundaries.
-5. Add authorization and entitlement foundations before protected feature actions.
-6. Implement the first end-to-end vertical slice: Moderation Warn.
+1. Verify repeatable baseline seeding and complete database-stage review.
+2. Implement Redis primitives, queue/worker contracts, and real readiness checks.
+3. Add bot command/event lifecycle and shared permission/entitlement foundations.
+4. Implement the Moderation Warn vertical slice across persistence, API, bot, audit, and tests.
+5. Continue with the remaining MVP modules in the source execution order.

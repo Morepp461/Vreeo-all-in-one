@@ -20,6 +20,7 @@ model User {
   deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
   oauthAccounts  OAuthAccount[]
   sessions       Session[]
+  guildMembers   GuildMember[]
   auditLogs      AuditLog[]
 
   @@index([lastLoginAt])
@@ -143,7 +144,7 @@ model GuildMemberRole {
   guildId        String      @map("guild_id") @db.Uuid
   memberId       String      @map("member_id") @db.Uuid
   discordRoleId  String      @map("discord_role_id") @db.VarChar(32)
-  assignedAt     DateTime    @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  assignedAt     DateTime    @map("assigned_at") @db.Timestamptz(6)
   removedAt      DateTime?   @map("removed_at") @db.Timestamptz(6)
   guild          Guild       @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   member         GuildMember @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Cascade)

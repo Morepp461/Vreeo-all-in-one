@@ -10,6 +10,15 @@ export interface CreateRedisConnectionOptions {
 }
 
 export function createRedisConnection(options: CreateRedisConnectionOptions): RedisConnection {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(options.url);
+  } catch {
+    throw new Error("Redis URL must be a valid URL");
+  }
+  if (parsedUrl.protocol !== "redis:" && parsedUrl.protocol !== "rediss:") {
+    throw new Error("Redis URL must use redis:// or rediss://");
+  }
   const connection = new Redis.default(options.url, {
     lazyConnect: true,
     maxRetriesPerRequest: null,
@@ -58,7 +67,6 @@ export async function getJson<T>(connection: RedisConnection, key: string): Prom
   try {
     return JSON.parse(raw) as T;
   } catch {
-    // Avoid deleting a fresh value another request may have written after our GET.
     await connection.eval(deleteIfUnchangedScript, 1, key, raw);
     return null;
   }

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createLogger } from "@vreeo/logger";
-import { closeRedisConnection, createRedisConnection } from "@vreeo/redis";
+import { buildRedisKey, closeRedisConnection, createRedisConnection } from "@vreeo/redis";
 import { addIdempotentJob, createIdempotentJobId, createQueue, createQueueWorker, defaultQueueJobOptions, DEFAULT_BACKOFF_DELAY_MS, DEFAULT_JOB_ATTEMPTS } from "./index.js";
 
 const redis = createRedisConnection({
@@ -43,13 +43,43 @@ describe("queue policy", () => {
     const queueName = `test-idem-${randomUUID().replace(/-/g, "")}`;
     const queue = createQueue<{ value: string }>(queueName, redis);
     try {
-      const first = await addIdempotentJob(queue, "test-job", { value: "one" }, "same-request");
-      const second = await addIdempotentJob(queue, "test-job", { value: "two" }, "same-request");
-      expect(second.id).toBe(first.id);
+      const first = await addIdempotentJob(queue, redis, "test-job", { value: "one" }, "same-request", { idempotencyTtlSeconds: 30 });
+      const second = await addIdempotentJob(queue, redis, "test-job", { value: "two" }, "same-request", { idempotencyTtlSeconds: 30 });
+      expect(first.accepted).toBe(true);
+      expect(second).toMatchObject({ accepted: false, jobId: first.jobId, reason: "duplicate" });
       expect(await queue.getWaitingCount()).toBe(1);
     } finally {
+      await redis.del(buildRedisKey("queue-idempotency", queueName, createIdempotentJobId(queueName, "same-request")));
       await queue.obliterate({ force: true });
       await queue.close();
+    }
+  });
+
+  it("keeps idempotency suppression after the original queue job is removed", async () => {
+    const queueName = `test-idem-retain-${randomUUID().replace(/-/g, "")}`;
+    const queue = createQueue<{ value: string }>(queueName, redis);
+    try {
+      const first = await addIdempotentJob(queue, redis, "test-job", { value: "one" }, "stable-request", { idempotencyTtlSeconds: 30 });
+      if (!first.accepted) throw new Error("First enqueue unexpectedly treated as a duplicate");
+      await first.job.remove();
+      const duplicate = await addIdempotentJob(queue, redis, "test-job", { value: "two" }, "stable-request", { idempotencyTtlSeconds: 30 });
+      expect(duplicate).toEqual({ accepted: false, jobId: first.jobId, reason: "duplicate" });
+      expect(await queue.getWaitingCount()).toBe(0);
+    } finally {
+      await redis.del(buildRedisKey("queue-idempotency", queueName, createIdempotentJobId(queueName, "stable-request")));
+      await queue.obliterate({ force: true });
+      await queue.close();
+    }
+  });
+
+  it("creates a valid DLQ name for the longest accepted worker queue name", async () => {
+    const queueName = `q${"x".repeat(94)}`;
+    const handle = createQueueWorker(queueName, redis, async () => undefined, { concurrency: 1 });
+    try {
+      expect(handle.deadLetterQueue.name).toMatch(/^dlq-[a-f0-9]{40}$/);
+    } finally {
+      await handle.close();
+      await handle.deadLetterQueue.obliterate({ force: true });
     }
   });
 

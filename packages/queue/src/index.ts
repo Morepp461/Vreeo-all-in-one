@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { Queue, Worker, type JobsOptions, type Processor } from "bullmq";
 import type { Logger } from "pino";
-import type { RedisConnection } from "@vreeo/redis";
+import { buildRedisKey, type RedisConnection } from "@vreeo/redis";
+import type { Job } from "bullmq";
 
 export const QUEUE_PREFIX = "vreeo:queue";
 export type VreeoQueue<TData = unknown> = Queue<TData, unknown, string>;
@@ -16,6 +17,10 @@ export interface DeadLetterJobData {
   failedAt: string;
   errorName: string;
   payloadReference: string;
+}
+
+export interface AddIdempotentJobOptions extends JobsOptions {
+  idempotencyTtlSeconds?: number;
 }
 
 export interface CreateQueueOptions {
@@ -60,18 +65,53 @@ export function createIdempotentJobId(queueName: string, idempotencyKey: string)
   return `idem-${digest}`;
 }
 
+export type IdempotentEnqueueResult<TData> =
+  | { accepted: true; jobId: string; job: Job<TData, unknown, string> }
+  | { accepted: false; jobId: string; reason: "duplicate" };
+
+const releaseIdempotencyKeyScript = `
+if redis.call("get", KEYS[1]) == ARGV[1] then
+  return redis.call("del", KEYS[1])
+end
+return 0
+`;
+
 export async function addIdempotentJob<TData>(
   queue: VreeoQueue<TData>,
+  connection: RedisConnection,
   jobName: string,
   data: TData,
   idempotencyKey: string,
-  options: JobsOptions = {},
-) {
-  // BullMQ's typed-job-map overload narrows names from the payload type; this generic helper intentionally accepts arbitrary names.
-  return queue.add(jobName as never, data as never, {
-    ...options,
-    jobId: createIdempotentJobId(queue.name, idempotencyKey),
-  });
+  options: AddIdempotentJobOptions = {},
+): Promise<IdempotentEnqueueResult<TData>> {
+  const { idempotencyTtlSeconds = 86_400, ...jobOptions } = options;
+  if (!Number.isSafeInteger(idempotencyTtlSeconds) || idempotencyTtlSeconds <= 0) {
+    throw new Error("Idempotency TTL must be a positive integer number of seconds");
+  }
+
+  const jobId = createIdempotentJobId(queue.name, idempotencyKey);
+  const key = buildRedisKey("queue-idempotency", queue.name, jobId);
+  const claimed = await connection.set(key, jobId, "EX", idempotencyTtlSeconds, "NX");
+  if (claimed !== "OK") {
+    const existingJobId = await connection.get(key);
+    if (existingJobId) return { accepted: false, jobId: existingJobId, reason: "duplicate" };
+    // The marker may have expired between SET NX and GET. Make one bounded retry.
+    const retryClaim = await connection.set(key, jobId, "EX", idempotencyTtlSeconds, "NX");
+    if (retryClaim !== "OK") {
+      const racedJobId = await connection.get(key);
+      if (racedJobId) return { accepted: false, jobId: racedJobId, reason: "duplicate" };
+      throw new Error("Could not reserve the queue idempotency key");
+    }
+  }
+
+  try {
+    // The generic helper intentionally accepts arbitrary job names across payload types.
+    const job = await queue.add(jobName as never, data as never, { ...jobOptions, jobId });
+    return { accepted: true, jobId, job };
+  } catch (error) {
+    await connection.eval(releaseIdempotencyKeyScript, 1, key, jobId);
+    throw error;
+  }
 }
 
 export interface QueueWorkerHandle<TData = unknown, TResult = unknown> {
@@ -95,12 +135,12 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
   if (!Number.isSafeInteger(options.concurrency ?? 5) || (options.concurrency ?? 5) <= 0) {
     throw new Error("Worker concurrency must be a positive integer");
   }
-  if (queueName.length > 91) {
-    throw new Error("Queue names used by workers must be 91 characters or fewer so the DLQ suffix fits");
-  }
   const logger = options.logger;
   const pendingDeadLetterWrites = new Set<Promise<void>>();
-  const deadLetterQueue = createQueue<DeadLetterJobData>(`${queueName}-dlq`, connection);
+  const deadLetterName = queueName.length <= 91
+    ? `${queueName}-dlq`
+    : `dlq-${createHash("sha256").update(queueName).digest("hex").slice(0, 40)}`;
+  const deadLetterQueue = createQueue<DeadLetterJobData>(deadLetterName, connection);
   const worker = new Worker<TData, TResult, string>(queueName, processor, {
     connection,
     prefix: QUEUE_PREFIX,

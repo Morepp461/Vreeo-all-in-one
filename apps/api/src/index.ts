@@ -8,7 +8,7 @@ import { buildServer } from "./server.js";
 const config = loadApiConfig();
 const loggerOptions = createLoggerOptions({ service: "api", level: config.logLevel });
 const logger = createLogger({ service: "api", level: config.logLevel });
-const database = createDatabaseClient();
+const database = createDatabaseClient({ url: config.databaseUrl });
 const redis = createRedisConnection({ url: config.redisUrl, logger });
 const app = await buildServer({
   loggerOptions,
@@ -27,19 +27,34 @@ const app = await buildServer({
   ],
 });
 
+async function closeRuntime(): Promise<void> {
+  let failed = false;
+  try {
+    await app.close();
+  } catch (error) {
+    failed = true;
+    logger.error({ err: error }, "API server shutdown failed");
+  }
+
+  const results = await Promise.allSettled([
+    closeRedisConnection(redis),
+    database.$disconnect(),
+  ]);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      failed = true;
+      logger.error({ err: result.reason }, "API dependency shutdown failed");
+    }
+  }
+  if (failed) process.exitCode = 1;
+}
+
 let shuttingDown = false;
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info({ signal }, "Shutting down API");
-  try {
-    await app.close();
-    await closeRedisConnection(redis);
-    await database.$disconnect();
-  } catch (error) {
-    logger.error({ err: error, signal }, "API shutdown failed");
-    process.exitCode = 1;
-  }
+  await closeRuntime();
 };
 process.once("SIGINT", () => void shutdown("SIGINT"));
 process.once("SIGTERM", () => void shutdown("SIGTERM"));
@@ -49,12 +64,6 @@ try {
   logger.info({ host: config.apiHost, port: config.apiPort }, "API listening");
 } catch (error) {
   logger.fatal({ err: error }, "API failed to start");
-  try {
-    await app.close();
-    await closeRedisConnection(redis);
-    await database.$disconnect();
-  } catch (shutdownError) {
-    logger.error({ err: shutdownError }, "API cleanup after startup failure failed");
-  }
+  await closeRuntime();
   process.exitCode = 1;
 }

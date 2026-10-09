@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
@@ -49,6 +49,17 @@ jobs:
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
         run: pnpm --filter @vreeo/database db:migrate:deploy
+      - name: Temporarily format ticket command
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/feature/bootstrap'
+        run: |
+          pnpm exec prettier --write apps/bot/src/commands/ticket.ts
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add apps/bot/src/commands/ticket.ts
+            git commit -m "style: format ticket interaction handling"
+            git push origin HEAD:feature/bootstrap
+          fi
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

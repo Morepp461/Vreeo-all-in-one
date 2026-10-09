@@ -27,7 +27,11 @@ export const helpCommand: VreeoCommand = {
           value:
             '`/warn` — issue a warning\n`/timeout` — temporarily restrict a member\n`/kick` — remove a member\n`/ban` — ban a user\n`/case` — view a case\n`/warnings` — view warning history\n`/automod` — manage keyword filters\n`/ticket setup|open|claim|close|reopen|list` — manage private support tickets',
         },
-        { name: 'Support', value: '`/ticket open` — open a private support channel\n`/ticket close` — close a ticket' },
+        {
+          name: 'Support',
+          value:
+            '`/ticket setup` — configure ticket category and staff role\n`/ticket open` — open a private support channel\n`/ticket claim` — claim a ticket\n`/ticket close` — close a ticket\n`/ticket reopen` — reopen a closed ticket\n`/ticket list` — list active tickets',
+        },
       )
       .setFooter({ text: 'VREEO • AI is not part of V1' });
     await interaction.reply({ embeds: [embed], ephemeral: true });

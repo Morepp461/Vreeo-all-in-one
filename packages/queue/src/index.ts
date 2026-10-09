@@ -107,7 +107,7 @@ export async function addIdempotentJob<TData>(
   try {
     // The generic helper intentionally accepts arbitrary job names across payload types.
     const job = await queue.add(jobName as never, data as never, { ...jobOptions, jobId });
-    return { accepted: true, jobId, job };
+    return { accepted: true, jobId, job: job as unknown as Job<TData, unknown, string> };
   } catch (error) {
     await connection.eval(releaseIdempotencyKeyScript, 1, key, jobId);
     throw error;

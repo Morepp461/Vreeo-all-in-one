@@ -25,6 +25,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
         run: pnpm --filter @vreeo/database db:validate && pnpm --filter @vreeo/database db:generate
+      - name: Preview initial migration SQL
+        env:
+          DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
+        run: pnpm --filter @vreeo/database exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

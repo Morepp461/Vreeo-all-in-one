@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint src",
-    "test": "vitest run"
+    "lint": "eslint src"
   },
   "dependencies": {
     "next": "^15.5.6",

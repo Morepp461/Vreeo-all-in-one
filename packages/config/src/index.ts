@@ -10,8 +10,8 @@ const apiSchema = baseSchema.extend({
 });
 const botSchema = baseSchema.extend({
   DISCORD_TOKEN: z.string().trim().min(1, "DISCORD_TOKEN is required to run the bot"),
-  DISCORD_CLIENT_ID: z.string().trim().min(1).optional(),
-  DISCORD_DEV_GUILD_ID: z.string().trim().min(1).optional(),
+  DISCORD_CLIENT_ID: z.string().trim().optional(),
+  DISCORD_DEV_GUILD_ID: z.string().trim().optional(),
 });
 
 type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";

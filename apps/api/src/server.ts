@@ -40,11 +40,11 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
     global: true,
     max: 120,
     timeWindow: "1 minute",
-    errorResponseBuilder: (_request, context) => ({
+    errorResponseBuilder: (request, _context) => ({
       error: {
         code: "RATE_LIMITED",
         message: "Too many requests. Please try again later.",
-        retryAfterSeconds: Math.ceil(context.ttl / 1000),
+        requestId: request.id,
       },
     }),
   });

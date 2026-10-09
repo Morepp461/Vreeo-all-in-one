@@ -66,10 +66,7 @@ async function writeTicketAudit(input: {
   });
 }
 
-function ticketFailure(
-  interaction: Parameters<VreeoCommand['execute']>[0],
-  message: string,
-) {
+function ticketFailure(interaction: Parameters<VreeoCommand['execute']>[0], message: string) {
   if (interaction.deferred && !interaction.replied) {
     return interaction.editReply({ content: message, allowedMentions: { parse: [] } });
   }
@@ -465,7 +462,11 @@ export const ticketCommand: VreeoCommand = {
             : 'There are no active tickets.',
         )
         .setFooter({ text: 'Showing up to 10 active tickets' });
-      await interaction.editReply({ embeds: [embed], ephemeral: true, allowedMentions: { parse: [] } });
+      await interaction.editReply({
+        embeds: [embed],
+        ephemeral: true,
+        allowedMentions: { parse: [] },
+      });
       return;
     }
 

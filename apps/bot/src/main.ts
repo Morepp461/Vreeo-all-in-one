@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { getBotToken } from './config.js';
 

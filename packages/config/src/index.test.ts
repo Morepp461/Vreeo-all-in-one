@@ -35,8 +35,10 @@ describe("environment configuration", () => {
     })).not.toThrow();
   });
 
-  it("requires a non-empty bot token", () => {
+  it("requires a non-empty bot token and explicit database configuration in production", () => {
     expect(() => loadBotConfig({ DISCORD_TOKEN: "" })).toThrow(/DISCORD_TOKEN/);
+    expect(() => loadBotConfig({ NODE_ENV: "production", DISCORD_TOKEN: "token" })).toThrow(/DATABASE_URL/);
+    expect(loadBotConfig({ DISCORD_TOKEN: "token", ...localApiEnvironment }).databaseUrl).toBe(localApiEnvironment.DATABASE_URL);
   });
 
   it("accepts blank optional Discord application identifiers", () => {

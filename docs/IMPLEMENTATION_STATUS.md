@@ -20,6 +20,7 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Database-backed permission/profile and entitlement policy loaders.
 - Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
 - OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
+- Bot gateway synchronizes active guild metadata into `guilds` at startup and on guild create/update/delete. This does not synchronize member/role state or replace live authorization checks.
 
 ### Verification
 

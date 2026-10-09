@@ -3,7 +3,7 @@ import { createDatabaseClient } from "@vreeo/database";
 import { loadBotConfig } from "@vreeo/config";
 import { createLogger } from "@vreeo/logger";
 import { Client, Events, GatewayIntentBits, type Guild } from "discord.js";
-import { syncGuildMember, syncGuildRoles, syncGuildSnapshot } from "./sync/guild-sync.js";
+import { markGuildMemberDeparted, syncGuildChannels, syncGuildMember, syncGuildMetadata, syncGuildRoles, syncGuildSnapshot } from "./sync/guild-sync.js";
 
 const config = loadBotConfig();
 const logger = createLogger({ service: "bot", level: config.logLevel });
@@ -36,7 +36,12 @@ client.once(Events.ClientReady, async (readyClient) => {
 });
 client.on(Events.GuildCreate, (guild) => { void syncGuildSafely(guild, "guild_create"); });
 client.on(Events.GuildUpdate, (_oldGuild, guild) => {
-  void syncGuildSafely(guild, "guild_update");
+  void (async () => {
+    const guildId = await syncGuildMetadata(guild, database);
+    await syncGuildRoles(guild, database, guildId);
+    await syncGuildChannels(guild, database, guildId);
+    logger.info({ discordGuildId: guild.id }, "Guild metadata synchronized");
+  })().catch((error: unknown) => logger.error({ err: error, discordGuildId: guild.id }, "Guild metadata synchronization failed"));
 });
 client.on(Events.GuildDelete, (guild) => {
   void database.guild.updateMany({
@@ -50,18 +55,8 @@ client.on(Events.GuildRoleDelete, (role) => { void syncGuildRoles(role.guild, da
 client.on(Events.GuildMemberAdd, (member) => { void syncGuildMember(member, database).catch((error: unknown) => logger.error({ err: error, discordGuildId: member.guild.id }, "Guild member sync failed")); });
 client.on(Events.GuildMemberUpdate, (_oldMember, member) => { void syncGuildMember(member, database).catch((error: unknown) => logger.error({ err: error, discordGuildId: member.guild.id }, "Guild member sync failed")); });
 client.on(Events.GuildMemberRemove, (member) => {
-  void (async () => {
-    const guild = await database.guild.findUnique({ where: { discordGuildId: member.guild.id }, select: { id: true } });
-    if (!guild) return;
-    const existing = await database.guildMember.findUnique({
-      where: { guildId_discordUserId: { guildId: guild.id, discordUserId: member.id } },
-      select: { id: true },
-    });
-    if (!existing) return;
-    const now = new Date();
-    await database.guildMember.update({ where: { id: existing.id }, data: { isMember: false, leftAt: now } });
-    await database.guildMemberRole.updateMany({ where: { memberId: existing.id, removedAt: null }, data: { removedAt: now } });
-  })().catch((error: unknown) => logger.error({ err: error, discordGuildId: member.guild.id }, "Guild member removal sync failed"));
+  void markGuildMemberDeparted(member.guild.id, member.id, database)
+    .catch((error: unknown) => logger.error({ err: error, discordGuildId: member.guild.id }, "Guild member removal sync failed"));
 });
 
 client.on(Events.Error, (error) => logger.error({ err: error }, "Discord client error"));

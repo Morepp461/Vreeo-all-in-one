@@ -52,7 +52,7 @@ jobs:
       - name: Temporarily format ticket panel integration
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/feature/bootstrap'
         run: |
-          pnpm exec prettier --write apps/bot/src/commands/ticket.ts apps/bot/src/services/ticket-service.ts apps/bot/src/services/ticket-panels.ts apps/bot/src/main.ts apps/bot/test/commands.test.ts apps/bot/src/commands/help.ts packages/database/prisma/schema.prisma README.md
+          pnpm exec prettier --write apps/bot/src/commands/ticket.ts apps/bot/src/services/ticket-service.ts apps/bot/src/services/ticket-panels.ts apps/bot/src/main.ts apps/bot/test/commands.test.ts apps/bot/src/commands/help.ts README.md
           if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

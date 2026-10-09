@@ -37,8 +37,11 @@ function isStaff(interaction: Parameters<VreeoCommand['execute']>[0], staffRoleI
   if (interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels)) return true;
   if (!staffRoleId || !interaction.inGuild()) return false;
   const member = interaction.member;
-  if (!member || !('roles' in member) || !member.roles || !('cache' in member.roles)) return false;
-  return member.roles.cache.has(staffRoleId);
+  if (!member || !('roles' in member) || !member.roles) return false;
+  const roles = member.roles;
+  if (Array.isArray(roles)) return roles.includes(staffRoleId);
+  if ('cache' in roles) return roles.cache.has(staffRoleId);
+  return false;
 }
 
 async function writeTicketAudit(input: {

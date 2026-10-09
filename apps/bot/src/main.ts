@@ -1,10 +1,7 @@
 import { Client, GatewayIntentBits } from 'discord.js';
+import { getBotToken } from './config.js';
 
-const token = process.env.DISCORD_BOT_TOKEN;
-
-if (!token) {
-  throw new Error('DISCORD_BOT_TOKEN is required to start the Discord bot.');
-}
+const token = getBotToken();
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
@@ -25,7 +22,7 @@ const shutdown = async (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
   console.info(`Received ${signal}; shutting down Discord client.`);
-  client.destroy();
+  await client.destroy();
 };
 
 process.once('SIGINT', () => void shutdown('SIGINT'));

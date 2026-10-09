@@ -1,5 +1,5 @@
 import type { DatabaseClient } from "@vreeo/database";
-import type { AccessibleGuild, GuildAccessRepository } from "./types.js";
+import type { AccessibleGuild, GuildAccessRepository, GuildContextLookup } from "./types.js";
 
 const ADMINISTRATOR = 0x8n;
 const MANAGE_GUILD = 0x20n;
@@ -15,6 +15,49 @@ export function hasManageGuildPermission(permissions: readonly string[]): boolea
     }
   }
   return false;
+  async resolveGuildContext(discordGuildId: string, discordUserId: string): Promise<GuildContextLookup> {
+    const guild = await this.prisma.guild.findUnique({
+      where: { discordGuildId },
+      select: {
+        id: true,
+        discordGuildId: true,
+        name: true,
+        iconUrl: true,
+        ownerDiscordUserId: true,
+        active: true,
+        botJoinedAt: true,
+        members: {
+          where: { discordUserId, isMember: true, leftAt: null },
+          select: { roles: { where: { removedAt: null }, select: { discordRoleId: true } } },
+        },
+        roles: { select: { discordRoleId: true, permissions: true } },
+      },
+    });
+    if (!guild || !guild.active || guild.botJoinedAt === null) return { status: "not_found" };
+
+    const isOwner = guild.ownerDiscordUserId === discordUserId;
+    const member = guild.members[0];
+    const roleIds = member?.roles.map((role) => role.discordRoleId) ?? [];
+    const assignedRoleIds = new Set(roleIds);
+    const rolePermissions = guild.roles
+      .filter((role) => assignedRoleIds.has(role.discordRoleId))
+      .map((role) => role.permissions);
+    if (!isOwner && (!member || !hasManageGuildPermission(rolePermissions))) {
+      return { status: "forbidden" };
+    }
+    return {
+      status: "ok",
+      guild: {
+        guildId: guild.id,
+        discordGuildId: guild.discordGuildId,
+        name: guild.name,
+        iconUrl: guild.iconUrl,
+        isOwner,
+        roleIds,
+      },
+    };
+  }
+
 }
 
 export class PrismaGuildAccessRepository implements GuildAccessRepository {

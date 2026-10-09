@@ -41,14 +41,16 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      - name: Commit updated pnpm lockfile during bootstrap
+      - name: Format and commit bootstrap changes
         if: success() && github.event_name == 'push' && github.ref == 'refs/heads/feature/bootstrap'
         run: |
-          if ! git diff --quiet -- pnpm-lock.yaml; then
+          pnpm exec prettier --write .
+          if ! git diff --quiet; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -u
             git add pnpm-lock.yaml
-            git commit -m "build: sync pnpm lockfile with workspace dependencies"
+            git commit -m "chore: format bootstrap implementation and sync lockfile"
             git push origin HEAD:feature/bootstrap
           fi
       - name: Validate database schema and generate Prisma client

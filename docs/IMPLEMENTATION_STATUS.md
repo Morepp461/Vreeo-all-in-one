@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Current stage: tenant-scoped guild context
+## Current stage: database-backed policy loaders
 
 This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
 
@@ -14,6 +14,7 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Authenticated `GET /api/v1/auth/guilds` returns only manageable guilds with an active bot registry record.
 - Bot syncs guild create/delete and cached guilds to the existing `Guild` model; no schema change was introduced.
 - Reusable tenant-context pre-handler validates the URL guild ID, resolves the HttpOnly session, and checks the user’s server-owned access snapshot before attaching a typed guild context. `GET /api/v1/guilds/:guildId/context` exercises the guard.
+- Prisma policy loaders load guild-scoped role grants and user/role overrides, reject malformed stored permission values, and map persisted entitlement rows/subscription state into the existing pure entitlement resolver contract. Unknown sources and unsafe limits fail closed.
 - Production config requires OAuth credentials, HTTPS redirect/origin, and secure session cookies; development may leave OAuth unconfigured.
 
 ### Still not implemented
@@ -30,8 +31,8 @@ Infrastructure and shared package gates previously passed. The auth/session bran
 
 ### Next sequence
 
-1. Define a safe permission-refresh/revalidation strategy without persisting OAuth tokens contrary to the current source design.
-2. Wire permission and entitlement packages to database-backed policy loaders and require guild context on every guild-scoped route.
-3. Implement the Moderation Warn vertical slice with auditability, idempotency, and tests.
+1. Define a safe permission-refresh/revalidation strategy without persisting OAuth tokens contrary to the current source design, and specify default permission profiles in source/schema.
+2. Build the Moderation Warn domain service with transaction-safe case numbering, idempotency, audit logging, and tests; do not expose mutation routes until authorization is complete.
+3. Add bot command registration and connect the first vertical slice end-to-end.
 4. Add bot command registry and interaction/event routers.
 5. Implement Moderation Warn end-to-end and expand the remaining MVP features.

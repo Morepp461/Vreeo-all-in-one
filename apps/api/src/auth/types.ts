@@ -13,10 +13,10 @@ export interface AuthRepository {
   listSessions(userId: string, limit: number): Promise<AuthSessionRecord[]>;
   revokeSession(userId: string, sessionId: string, at: Date): Promise<boolean>;
 }
-export interface OAuthStateStore { issue(state: string, ttlSeconds: number): Promise<boolean>; consume(state: string): Promise<boolean>; }
+export interface OAuthStateStore { issue(state: string, ttlSeconds: number, codeVerifier?: string): Promise<boolean>; consume(state: string): Promise<string | boolean | null>; }
 export interface DiscordOAuthProvider {
-  buildAuthorizationUrl(state: string): string;
-  exchangeCode(code: string): Promise<DiscordOAuthToken>;
+  buildAuthorizationUrl(state: string, codeChallenge?: string): string;
+  exchangeCode(code: string, codeVerifier?: string): Promise<DiscordOAuthToken>;
   fetchIdentity(accessToken: string): Promise<DiscordOAuthIdentity>;
 }
 export interface AuthRouteDependencies { config: ApiConfig; repository: AuthRepository; stateStore: OAuthStateStore; provider: DiscordOAuthProvider | null; }

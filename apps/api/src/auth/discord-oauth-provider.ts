@@ -16,17 +16,22 @@ async function parseResponse(response: Response, stage: DiscordOAuthProviderErro
 }
 export class DiscordOAuthHttpProvider implements DiscordOAuthProvider {
   constructor(private readonly config: DiscordOAuthConfig) {}
-  buildAuthorizationUrl(state: string): string {
+  buildAuthorizationUrl(state: string, codeChallenge?: string): string {
     const url = new URL(AUTHORIZE_URL);
     url.searchParams.set("client_id", this.config.clientId);
     url.searchParams.set("response_type", "code");
     url.searchParams.set("redirect_uri", this.config.redirectUri);
     url.searchParams.set("scope", "identify guilds");
     url.searchParams.set("state", state);
+    if (codeChallenge) {
+      url.searchParams.set("code_challenge", codeChallenge);
+      url.searchParams.set("code_challenge_method", "S256");
+    }
     return url.toString();
   }
-  async exchangeCode(code: string): Promise<DiscordOAuthToken> {
+  async exchangeCode(code: string, codeVerifier?: string): Promise<DiscordOAuthToken> {
     const body = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: this.config.redirectUri });
+    if (codeVerifier) body.set("code_verifier", codeVerifier);
     const authorization = Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString("base64");
     let response: Response;
     try {

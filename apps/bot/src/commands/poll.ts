@@ -60,7 +60,8 @@ export const pollCommand: VreeoCommand = {
     await interaction.deferReply({ ephemeral: true });
     const message = await interaction.channel.send({ embeds: [embed] });
     for (let index = 0; index < options.length; index += 1) {
-      await message.react(emoji[index]);
+      const reactionEmoji = emoji[index];
+      if (reactionEmoji) await message.react(reactionEmoji);
     }
     await interaction.editReply({ content: `Poll created: ${message.url}` });
   },

@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./client": "./src/client.ts"
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js"
+    }
   },
   "scripts": {
     "db:generate": "prisma generate",
@@ -12,7 +15,8 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "build": "prisma generate && tsc -p tsconfig.json"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0"

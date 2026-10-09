@@ -119,7 +119,7 @@ export async function loadEntitlementCandidates(
       limit: safeLimit(row.limitValue),
       expiresAt: expiry,
       ...(source === "subscription" ? {
-        subscriptionState: state,
+        ...(state ? { subscriptionState: state } : {}),
         cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
         currentPeriodEnd: subscription?.currentPeriodEnd ?? null,
         graceAccessAllowed: input.graceAccessAllowed,

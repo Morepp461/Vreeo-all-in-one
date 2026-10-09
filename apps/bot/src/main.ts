@@ -149,8 +149,14 @@ let shuttingDown = false;
 const shutdown = async (signal: string) => {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.info(`Received ${signal}; shutting down Discord client.`);
+  console.info(`Received ${signal}; shutting down Discord client and database pool.`);
   client.destroy();
+  await prisma.$disconnect().catch((error: unknown) => {
+    console.error(
+      'Database disconnect failed during shutdown:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
+  });
 };
 
 process.once('SIGINT', () => void shutdown('SIGINT'));

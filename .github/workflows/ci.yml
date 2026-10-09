@@ -5,8 +5,12 @@ on:
   push:
     branches: [main, 'feature/**', 'fix/**', 'security/**']
 
+concurrency:
+  group: vreeo-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
@@ -47,3 +51,13 @@ jobs:
         run: pnpm format:check
       - name: Quality checks
         run: pnpm lint && pnpm typecheck && pnpm test && pnpm build
+      - name: Commit generated lockfile for initial bootstrap
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/feature/bootstrap'
+        run: |
+          if ! git ls-files --error-unmatch pnpm-lock.yaml >/dev/null 2>&1; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "build: add generated pnpm lockfile"
+            git push origin HEAD:feature/bootstrap
+          fi

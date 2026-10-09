@@ -27,6 +27,11 @@ describe("environment configuration", () => {
       NODE_ENV: "production",
       DATABASE_URL: localApiEnvironment.DATABASE_URL,
       REDIS_URL: localApiEnvironment.REDIS_URL,
+      DISCORD_CLIENT_ID: "client",
+      DISCORD_CLIENT_SECRET: "secret",
+      DISCORD_REDIRECT_URI: "https://app.example/api/v1/auth/discord/callback",
+      APP_BASE_URL: "https://app.example",
+      SESSION_COOKIE_SECURE: "true",
     })).not.toThrow();
   });
 

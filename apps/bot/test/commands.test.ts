@@ -27,6 +27,19 @@ describe('slash command registry', () => {
     ]);
   });
 
+  it('exposes the supported ticket lifecycle subcommands', () => {
+    const ticket = commandMap.get('ticket');
+    expect(ticket).toBeDefined();
+    expect(ticket?.data.toJSON().options?.map((option) => option.name)).toEqual([
+      'setup',
+      'open',
+      'claim',
+      'close',
+      'reopen',
+      'list',
+    ]);
+  });
+
   it('serializes each command for Discord API registration', () => {
     for (const command of commands) {
       expect(command.data.toJSON()).toMatchObject({

@@ -49,6 +49,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
         run: pnpm --filter @vreeo/database db:migrate:deploy
+      - name: Show formatter diffs for new settings files
+        run: |
+          for file in apps/api/src/auth/discord-access.ts apps/api/src/auth/routes.ts apps/bot/src/commands/ticket.ts 'apps/dashboard/src/app/guild/[guildId]/page.tsx' apps/dashboard/src/app/styles.css; do
+            echo "FORMAT_DIFF: $file"
+            pnpm exec prettier "$file" | diff -u "$file" - || true
+          done
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

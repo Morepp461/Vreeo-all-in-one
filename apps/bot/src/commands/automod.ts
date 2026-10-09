@@ -99,8 +99,8 @@ export const autoModCommand: VreeoCommand = {
       const name = rawName?.trim().toLowerCase().replace(/\s+/g, '-');
       if (subcommand === 'add') {
         const nameOption = interaction.options.getString('name', true).trim().toLowerCase().replace(/\s+/g, '-');
-        if (!/^[a-z0-9_-]{3,100}$/.test(nameOption)) {
-          await interaction.editReply('Use 3–100 lowercase letters, numbers, hyphens, or underscores for the rule name.');
+        if (!/^[a-z0-9_-]{3,93}$/.test(nameOption)) {
+          await interaction.editReply('Use 3–93 lowercase letters, numbers, hyphens, or underscores for the rule name.');
           return;
         }
         const existing = await prisma.autoModRule.findUnique({
@@ -140,15 +140,28 @@ export const autoModCommand: VreeoCommand = {
         });
 
         try {
-          await prisma.autoModRule.create({
-            data: {
-              guildId: guildRecord.id,
-              name: nameOption,
-              ruleType: 'keyword_filter',
-              enabled: true,
-              config: { discordRuleId: rule.id, keywords },
-            },
-          });
+          await prisma.$transaction([
+            prisma.autoModRule.create({
+              data: {
+                guildId: guildRecord.id,
+                name: nameOption,
+                ruleType: 'keyword_filter',
+                enabled: true,
+                config: { discordRuleId: rule.id, keywords },
+              },
+            }),
+            prisma.auditLog.create({
+              data: {
+                guildId: guildRecord.id,
+                actorDiscordUserId: interaction.user.id,
+                action: 'automod.rule.created',
+                resourceType: 'automod_rule',
+                resourceId: rule.id,
+                newValue: { name: nameOption, keywords },
+                source: 'discord_bot',
+              },
+            }),
+          ]);
         } catch (error) {
           await rule.delete('VREEO database persistence failed; rolling back created rule.').catch(() => undefined);
           throw error;
@@ -176,9 +189,32 @@ export const autoModCommand: VreeoCommand = {
       }
 
       if (subcommand === 'remove') {
-        const discordRule = await interaction.guild.autoModerationRules.fetch(discordRuleId).catch(() => null);
+        const discordRule = await interaction.guild.autoModerationRules.fetch(discordRuleId).catch((error: unknown) => {
+          if (
+            error &&
+            typeof error === 'object' &&
+            'status' in error &&
+            error.status === 404
+          ) {
+            return null;
+          }
+          throw error;
+        });
         if (discordRule) await discordRule.delete(`VREEO AutoMod removed by ${interaction.user.id}`);
-        await prisma.autoModRule.delete({ where: { id: storedRule.id } });
+        await prisma.$transaction([
+          prisma.autoModRule.delete({ where: { id: storedRule.id } }),
+          prisma.auditLog.create({
+            data: {
+              guildId: guildRecord.id,
+              actorDiscordUserId: interaction.user.id,
+              action: 'automod.rule.removed',
+              resourceType: 'automod_rule',
+              resourceId: discordRuleId,
+              oldValue: { name, enabled: storedRule.enabled },
+              source: 'discord_bot',
+            },
+          }),
+        ]);
         await interaction.editReply(`AutoMod rule **${name}** removed.`);
         return;
       }
@@ -187,7 +223,26 @@ export const autoModCommand: VreeoCommand = {
         const enabled = interaction.options.getBoolean('enabled', true);
         const discordRule = await interaction.guild.autoModerationRules.fetch(discordRuleId);
         await discordRule.setEnabled(enabled, `VREEO AutoMod toggled by ${interaction.user.id}`);
-        await prisma.autoModRule.update({ where: { id: storedRule.id }, data: { enabled } });
+        try {
+          await prisma.$transaction([
+            prisma.autoModRule.update({ where: { id: storedRule.id }, data: { enabled } }),
+            prisma.auditLog.create({
+              data: {
+                guildId: guildRecord.id,
+                actorDiscordUserId: interaction.user.id,
+                action: 'automod.rule.toggled',
+                resourceType: 'automod_rule',
+                resourceId: discordRuleId,
+                oldValue: { name, enabled: storedRule.enabled },
+                newValue: { name, enabled },
+                source: 'discord_bot',
+              },
+            }),
+          ]);
+        } catch (error) {
+          await discordRule.setEnabled(storedRule.enabled, 'VREEO database update failed; rolling back AutoMod state.').catch(() => undefined);
+          throw error;
+        }
         await interaction.editReply(`AutoMod rule **${name}** is now ${enabled ? 'enabled' : 'disabled'}.`);
       }
     } catch (error) {

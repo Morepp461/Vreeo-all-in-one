@@ -3,7 +3,12 @@ import { hashOpaqueToken } from './crypto.js';
 
 const lastSeenUpdateIntervalMs = 5 * 60 * 1000;
 
-export async function createSession(userId: string, rawToken: string, secret: string, ttlSeconds: number) {
+export async function createSession(
+  userId: string,
+  rawToken: string,
+  secret: string,
+  ttlSeconds: number,
+) {
   const now = new Date();
 
   return prisma.session.create({

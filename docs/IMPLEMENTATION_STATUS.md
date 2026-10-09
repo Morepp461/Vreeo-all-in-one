@@ -11,15 +11,16 @@ This branch builds on `feat/database-foundation`. It is not a production release
 - Prisma schema and PostgreSQL migrations for core/MVP persistence.
 - GitHub Actions checks for schema validation, PostgreSQL migrations, idempotent plan seeding, schema drift, typecheck, tests, and build.
 
-### In progress on this branch
+### Implemented on this branch
 
-- Shared Redis connection and primitives for namespaced keys, JSON cache, cooldowns, readiness, and safe distributed locks.
+- Shared Redis connection and primitives for namespaced keys, JSON cache, cooldowns, readiness, and token-checked distributed locks.
+- BullMQ queue/worker helpers with bounded retries, exponential backoff, idempotent enqueue, and payload-free dead-letter records.
 - Provider-neutral object-storage interface; no concrete provider has been selected or configured.
+- Redis-backed API rate limiting and readiness checks for PostgreSQL, Redis, and BullMQ backend.
 
 ### Not implemented yet
 
-- BullMQ queue/worker runtime, bounded retries/backoff, dead-letter queue, and idempotent job enqueue.
-- Redis-backed API rate limiting and PostgreSQL/Redis readiness checks are now wired into API startup; full integration tests remain pending CI.
+- Dedicated worker process and concrete domain job handlers; queue primitives exist but no business jobs are registered yet.
 - Metrics and production observability.
 - Domain repositories and the Moderation Warn vertical slice.
 - OAuth2/session auth, guild context, permissions/entitlements, dashboard/admin, and Discord command/event routing.
@@ -36,11 +37,12 @@ This branch builds on `feat/database-foundation`. It is not a production release
 
 ### Verification status
 
-Core API and database migrations passed CI on the prior branches. The current Redis/storage additions must pass their own build and typecheck before queue integration proceeds. PostgreSQL and Redis are available as ephemeral CI services; local Docker startup and live Discord connection remain unverified.
+GitHub Actions passed on commit `92b71f6928bbb7206dceb2236f15e8c73185e3f8`, including Redis primitive and queue retry/idempotency/DLQ integration tests, Prisma validation and migrations, schema drift, typecheck, and build. The API queue-readiness integration in this commit is awaiting CI. PostgreSQL and Redis are ephemeral CI services; local Docker startup and live Discord connection remain unverified.
 
 ### Next sequence
 
-1. Finish Redis primitive tests and wire Redis-backed rate limiting/readiness.
-2. Add BullMQ queue/worker retry, backoff, DLQ, and idempotency.
-3. Add metrics/readiness integration and re-review infrastructure gates.
-4. Continue shared packages, authentication/guild context, permissions/entitlements, API/bot core, then Moderation Warn.
+1. Verify API readiness against PostgreSQL, Redis, and BullMQ in CI.
+2. Review remaining shared-package boundaries and define domain contracts.
+3. Implement OAuth2/session and guild-access foundations.
+4. Implement centralized permissions and entitlements before moderation actions.
+5. Build Moderation Warn end-to-end with idempotency, case/warning persistence, audit logging, API/bot handlers, and tests.

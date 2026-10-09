@@ -38,7 +38,7 @@ packages/
   events/       Internal event contracts/bus (not implemented yet)
   logger/       Structured logging
   permissions/  Shared authorization primitives (not implemented yet)
-  queue/        Background job contracts/workers (not implemented yet)
+  queue/        BullMQ queue/worker helpers, retries, idempotent enqueue, and DLQ
   types/        Shared domain contracts (not implemented yet)
   utils/        Shared utilities (not implemented yet)
 infrastructure/ Deployment configuration (not implemented yet)
@@ -61,7 +61,7 @@ docs/
 5. Seed the baseline plan records: `pnpm --filter @vreeo/database seed`
 6. Fill in a valid `DISCORD_TOKEN` if running the bot, then use `pnpm dev`.
 
-The API exposes `GET /health` for liveness. `GET /health/ready` deliberately returns HTTP 503 until PostgreSQL, Redis, and queue readiness checks are wired in. The bot requires a valid `DISCORD_TOKEN`. Commands, authentication, and dashboard features are not implemented yet.
+The API exposes `GET /health` for liveness and `GET /health/ready` for PostgreSQL, Redis, and BullMQ backend readiness. Readiness returns HTTP 503 if any dependency is missing or unavailable. Queue/worker primitives are available, but no business job handlers are registered yet. The bot requires a valid `DISCORD_TOKEN`. Commands, authentication, and dashboard features are not implemented yet.
 
 ## Security
 

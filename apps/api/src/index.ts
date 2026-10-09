@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createDatabaseClient } from "@vreeo/database";
 import { loadApiConfig } from "@vreeo/config";
 import { createLogger, createLoggerOptions } from "@vreeo/logger";
+import { createQueue } from "@vreeo/queue";
 import { checkRedisReady, closeRedisConnection, createRedisConnection } from "@vreeo/redis";
 import { buildServer } from "./server.js";
 
@@ -10,6 +11,7 @@ const loggerOptions = createLoggerOptions({ service: "api", level: config.logLev
 const logger = createLogger({ service: "api", level: config.logLevel });
 const database = createDatabaseClient({ url: config.databaseUrl });
 const redis = createRedisConnection({ url: config.redisUrl, logger });
+const readinessQueue = createQueue("api-readiness", redis);
 const app = await buildServer({
   loggerOptions,
   redis,
@@ -24,6 +26,13 @@ const app = await buildServer({
       name: "redis",
       check: () => checkRedisReady(redis),
     },
+    {
+      name: "queue",
+      check: async () => {
+        await readinessQueue.waitUntilReady();
+        await readinessQueue.getJobCounts("waiting", "active", "delayed", "failed", "completed");
+      },
+    },
   ],
 });
 
@@ -34,6 +43,13 @@ async function closeRuntime(): Promise<void> {
   } catch (error) {
     failed = true;
     logger.error({ err: error }, "API server shutdown failed");
+  }
+
+  try {
+    await readinessQueue.close();
+  } catch (error) {
+    failed = true;
+    logger.error({ err: error }, "API readiness queue shutdown failed");
   }
 
   const results = await Promise.allSettled([

@@ -9,9 +9,12 @@ export const warningsCommand: VreeoCommand = {
     .setName('warnings')
     .setDescription('Review recent warnings for a member.')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addUserOption((option) => option.setName('user').setDescription('Member to inspect.').setRequired(true)),
+    .addUserOption((option) =>
+      option.setName('user').setDescription('Member to inspect.').setRequired(true),
+    ),
   async execute(interaction) {
-    if (!interaction.guild) return replyFailure(interaction, 'This command only works in a server.');
+    if (!interaction.guild)
+      return replyFailure(interaction, 'This command only works in a server.');
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)) {
       return replyFailure(interaction, 'You need the Moderate Members permission.');
     }
@@ -38,11 +41,13 @@ export const warningsCommand: VreeoCommand = {
       .setTitle(`Warnings · ${target.tag}`)
       .setDescription(
         warnings.length
-          ? warnings.map((warning, index) => {
-              const timestamp = Math.floor(warning.createdAt.getTime() / 1000);
-              const caseText = warning.caseId ? ` · Case record linked` : '';
-              return `**${index + 1}.** <t:${timestamp}:d> — ${warning.reason.slice(0, 300)}\nModerator: <@${warning.moderatorDiscordUserId}>${caseText}`;
-            }).join('\n\n')
+          ? warnings
+              .map((warning, index) => {
+                const timestamp = Math.floor(warning.createdAt.getTime() / 1000);
+                const caseText = warning.caseId ? ` · Case record linked` : '';
+                return `**${index + 1}.** <t:${timestamp}:d> — ${warning.reason.slice(0, 300)}\nModerator: <@${warning.moderatorDiscordUserId}>${caseText}`;
+              })
+              .join('\n\n')
           : 'No active warnings were found for this member.',
       )
       .setFooter({ text: 'Showing up to 10 active warnings' });

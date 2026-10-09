@@ -18,7 +18,8 @@ export const caseCommand: VreeoCommand = {
         .setRequired(true),
     ),
   async execute(interaction) {
-    if (!interaction.guild) return replyFailure(interaction, 'This command only works in a server.');
+    if (!interaction.guild)
+      return replyFailure(interaction, 'This command only works in a server.');
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)) {
       return replyFailure(interaction, 'You need the Moderate Members permission.');
     }
@@ -42,7 +43,11 @@ export const caseCommand: VreeoCommand = {
         createdAt: true,
       },
     });
-    if (!record) return replyFailure(interaction, 'No moderation case with that number was found in this server.');
+    if (!record)
+      return replyFailure(
+        interaction,
+        'No moderation case with that number was found in this server.',
+      );
 
     const embed = new EmbedBuilder()
       .setColor(record.status === 'failed' ? 0xe06c75 : 0x9182ff)
@@ -50,16 +55,32 @@ export const caseCommand: VreeoCommand = {
       .addFields(
         { name: 'Action', value: record.action.toUpperCase(), inline: true },
         { name: 'Status', value: record.status.toUpperCase(), inline: true },
-        { name: 'Created', value: `<t:${Math.floor(record.createdAt.getTime() / 1000)}:F>`, inline: false },
-        { name: 'Target', value: `<@${record.targetDiscordUserId}> (\`${record.targetDiscordUserId}\`)`, inline: false },
+        {
+          name: 'Created',
+          value: `<t:${Math.floor(record.createdAt.getTime() / 1000)}:F>`,
+          inline: false,
+        },
+        {
+          name: 'Target',
+          value: `<@${record.targetDiscordUserId}> (\`${record.targetDiscordUserId}\`)`,
+          inline: false,
+        },
         { name: 'Moderator', value: `<@${record.moderatorDiscordUserId}>`, inline: true },
         { name: 'Reason', value: record.reason.slice(0, 1024), inline: false },
       );
     if (record.durationSeconds !== null) {
-      embed.addFields({ name: 'Duration', value: `${record.durationSeconds.toString()} seconds`, inline: true });
+      embed.addFields({
+        name: 'Duration',
+        value: `${record.durationSeconds.toString()} seconds`,
+        inline: true,
+      });
     }
     if (record.expiresAt) {
-      embed.addFields({ name: 'Expires', value: `<t:${Math.floor(record.expiresAt.getTime() / 1000)}:F>`, inline: true });
+      embed.addFields({
+        name: 'Expires',
+        value: `<t:${Math.floor(record.expiresAt.getTime() / 1000)}:F>`,
+        inline: true,
+      });
     }
     await interaction.reply({ embeds: [embed], ephemeral: true, allowedMentions: { parse: [] } });
   },

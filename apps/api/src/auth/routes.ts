@@ -213,7 +213,12 @@ export async function authRoutes(app: FastifyInstance) {
           scopes,
           accessTokenCiphertext: encryptOAuthToken(accessToken, config.oauthTokenEncryptionKey),
           ...(refreshToken
-            ? { refreshTokenCiphertext: encryptOAuthToken(refreshToken, config.oauthTokenEncryptionKey) }
+            ? {
+                refreshTokenCiphertext: encryptOAuthToken(
+                  refreshToken,
+                  config.oauthTokenEncryptionKey,
+                ),
+              }
             : {}),
           tokenExpiresAt,
         },

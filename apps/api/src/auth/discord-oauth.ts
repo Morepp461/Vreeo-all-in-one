@@ -64,6 +64,40 @@ export async function exchangeDiscordCode(
     return {
       user: userParsed.data,
       scopes: token.scope.split(' ').filter(Boolean),
+      accessToken: token.access_token,
+      refreshToken: token.refresh_token,
+      tokenExpiresAt: new Date(Date.now() + token.expires_in * 1000),
+    };
+  } catch (error) {
+    if (error instanceof DiscordOAuthError) throw error;
+    throw new DiscordOAuthError();
+  }
+}
+
+export async function refreshDiscordAccessToken(
+  refreshToken: string,
+  config: { clientId: string; clientSecret: string },
+) {
+  try {
+    const response = await fetch('https://discord.com/api/v10/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new DiscordOAuthError();
+    const parsed = tokenResponseSchema.safeParse(await response.json());
+    if (!parsed.success) throw new DiscordOAuthError();
+    return {
+      accessToken: parsed.data.access_token,
+      refreshToken: parsed.data.refresh_token ?? refreshToken,
+      scopes: parsed.data.scope.split(' ').filter(Boolean),
+      tokenExpiresAt: new Date(Date.now() + parsed.data.expires_in * 1000),
     };
   } catch (error) {
     if (error instanceof DiscordOAuthError) throw error;

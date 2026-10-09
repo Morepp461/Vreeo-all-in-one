@@ -11,7 +11,8 @@ export interface CreateDatabaseClientOptions {
  * The caller owns the connection lifecycle and must call $disconnect on shutdown.
  */
 export function createDatabaseClient(options: CreateDatabaseClientOptions = {}): DatabaseClient {
-  return new PrismaClient(options.url ? { datasources: { db: { url: options.url } } } : {});
+  const clientOptions = options.url ? { datasources: { db: { url: options.url } } } : undefined;
+  return new PrismaClient(clientOptions);
 }
 
 export { PrismaClient };

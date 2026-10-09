@@ -92,7 +92,7 @@ export async function syncGuildChannels(guild: Guild, database: DatabaseClient, 
       },
       update: {
         parentDiscordChannelId: channel.parentId,
-        name: channel.name.slice(0, 100), type: String(channel.type), position: channel.position,
+        name: channel.name.slice(0, 100), type: String(channel.type), position,
       },
     });
   }

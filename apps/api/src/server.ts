@@ -8,6 +8,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { LoggerOptions } from "pino";
 import { registerAuthRoutes } from "./auth/routes.js";
 import type { AuthRouteDependencies } from "./auth/types.js";
+import { registerGuildContextRoutes } from "./guild-context.js";
 
 export interface ReadinessCheck { name: string; check: () => Promise<void>; }
 export interface BuildServerOptions {
@@ -49,7 +50,10 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
       error: { code: "RATE_LIMITED", message: "Too many requests. Please try again later.", requestId: request.id },
     }),
   });
-  if (options.auth) await registerAuthRoutes(app, options.auth);
+  if (options.auth) {
+    await registerAuthRoutes(app, options.auth);
+    await registerGuildContextRoutes(app, options.auth);
+  }
   app.setNotFoundHandler((request, reply) => reply.code(404).send({
     error: { code: "NOT_FOUND", message: "The requested resource was not found.", requestId: request.id },
   }));

@@ -60,6 +60,7 @@ class MemoryAuthRepository implements AuthRepository {
     return this.session ? [this.session] : [];
   }
   async listAccessibleGuilds(_userId: string) { return this.accessibleGuilds; }
+  async getAccessibleGuild(_userId: string, guildId: string) { return this.accessibleGuilds.find((guild) => guild.id === guildId) ?? null; }
   async revokeSession(userId: string, sessionId: string, at: Date): Promise<boolean> {
     if (userId !== this.user.id || this.session?.id !== sessionId || this.revoked) return false;
     this.revoked = true;
@@ -199,6 +200,22 @@ describe("OAuth and session routes", () => {
       { id: "333333333333333333", name: "Moderator Guild", iconUrl: "" },
     ]);
     expect((await app.inject({ method: "GET", url: "/api/v1/auth/guilds" })).statusCode).toBe(401);
+  });
+
+  it("resolves tenant context only for an authenticated user with current guild access", async () => {
+    const deps = setup();
+    app = await buildServer({ loggerOptions: { level: "silent" }, auth: deps.auth });
+    const start = await app.inject({ method: "GET", url: "/api/v1/auth/discord" });
+    const state = new URL(start.headers.location as string).searchParams.get("state") ?? "";
+    const stateCookie = cookiePair(start.headers["set-cookie"], "vreeo_oauth_state");
+    const callback = await app.inject({ method: "GET", url: "/api/v1/auth/discord/callback?code=valid-code&state=" + state, headers: { cookie: stateCookie } });
+    const sessionCookie = cookiePair(callback.headers["set-cookie"], "vreeo_session");
+    const allowed = await app.inject({ method: "GET", url: "/api/v1/guilds/111111111111111111/context", headers: { cookie: sessionCookie } });
+    expect(allowed.statusCode).toBe(200);
+    expect(allowed.json().data).toEqual({ guildId: "111111111111111111", name: "Owner Guild", iconUrl: "https://cdn.discordapp.com/icons/111111111111111111/abc.png" });
+    expect((await app.inject({ method: "GET", url: "/api/v1/guilds/222222222222222222/context", headers: { cookie: sessionCookie } })).statusCode).toBe(403);
+    expect((await app.inject({ method: "GET", url: "/api/v1/guilds/not-a-snowflake/context", headers: { cookie: sessionCookie } })).statusCode).toBe(400);
+    expect((await app.inject({ method: "GET", url: "/api/v1/guilds/111111111111111111/context" })).statusCode).toBe(401);
   });
 
   it("does not reveal session hashes in the session list", async () => {

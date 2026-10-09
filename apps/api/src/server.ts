@@ -40,8 +40,7 @@ export function buildServer() {
 }
 
 const isEntrypoint =
-  process.argv[1] !== undefined &&
-  import.meta.url === new URL(`file://${process.argv[1]}`).href;
+  process.argv[1] !== undefined && import.meta.url === new URL(`file://${process.argv[1]}`).href;
 
 if (isEntrypoint) {
   const app = buildServer();

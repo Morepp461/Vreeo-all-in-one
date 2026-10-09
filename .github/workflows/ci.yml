@@ -11,6 +11,20 @@ permissions:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vreeo
+          POSTGRES_PASSWORD: vreeo_dev_only
+          POSTGRES_DB: vreeo
+        ports:
+          - '5432:5432'
+        options: >-
+          --health-cmd "pg_isready -U vreeo -d vreeo"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,10 +39,10 @@ jobs:
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
         run: pnpm --filter @vreeo/database db:validate && pnpm --filter @vreeo/database db:generate
-      - name: Preview initial migration SQL
+      - name: Apply migrations to a clean PostgreSQL database
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
-        run: pnpm --filter @vreeo/database exec prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script
+        run: pnpm --filter @vreeo/database db:migrate:deploy
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

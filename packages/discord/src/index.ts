@@ -2,6 +2,7 @@ import { REST } from "discord.js";
 import type { Logger } from "pino";
 
 export type DiscordRestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type DiscordApiRoute = `/${string}`;
 export type DiscordServiceErrorCode = "DISCORD_PERMISSION_MISSING" | "DISCORD_HIERARCHY_BLOCKED" | "DISCORD_RESOURCE_NOT_FOUND" | "DISCORD_RATE_LIMITED" | "DISCORD_API_ERROR";
 
 export class DiscordServiceError extends Error {
@@ -14,11 +15,11 @@ export class DiscordServiceError extends Error {
     if (options.statusCode !== undefined) this.statusCode = options.statusCode;
   }
 }
-export interface DiscordRestTransport { request<T>(method: DiscordRestMethod, route: string, options?: unknown): Promise<T>; }
+export interface DiscordRestTransport { request<T>(method: DiscordRestMethod, route: DiscordApiRoute, options?: unknown): Promise<T>; }
 export interface DiscordRequestContext { operation: string; guildId?: string; correlationId?: string; }
 export interface DiscordRequestMetric { method: DiscordRestMethod; operation: string; durationMs: number; success: boolean; statusCode?: number; }
 export interface DiscordRestServiceOptions { logger?: Pick<Logger, "info" | "warn">; onRequestMetric?: (metric: DiscordRequestMetric) => void; }
-export interface DiscordRestRequest { method: DiscordRestMethod; route: string; options?: unknown; context: DiscordRequestContext; }
+export interface DiscordRestRequest { method: DiscordRestMethod; route: DiscordApiRoute; options?: unknown; context: DiscordRequestContext; }
 
 interface ErrorLike { status?: unknown; statusCode?: unknown; code?: unknown; rawError?: { code?: unknown }; }
 function errorStatus(error: ErrorLike): number | undefined {
@@ -62,7 +63,7 @@ export class DiscordRestService {
 export function createDiscordRestTransport(token: string): DiscordRestTransport {
   if (token.trim().length === 0) throw new Error("Discord token must be non-empty");
   const rest = new REST({ version: "10" }).setToken(token);
-  return { async request<T>(method: DiscordRestMethod, route: string, options?: unknown): Promise<T> {
+  return { async request<T>(method: DiscordRestMethod, route: DiscordApiRoute, options?: unknown): Promise<T> {
     switch (method) {
       case "GET": return await rest.get(route, options as never) as T;
       case "POST": return await rest.post(route, options as never) as T;

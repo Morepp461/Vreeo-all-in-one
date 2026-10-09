@@ -71,10 +71,7 @@ export async function getDiscordAccessToken(
 
   let accessToken: string;
   try {
-    accessToken = decryptOAuthToken(
-      account.accessTokenCiphertext,
-      config.oauthTokenEncryptionKey,
-    );
+    accessToken = decryptOAuthToken(account.accessTokenCiphertext, config.oauthTokenEncryptionKey);
   } catch {
     throw new DiscordAccessError(
       401,

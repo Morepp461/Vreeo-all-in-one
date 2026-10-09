@@ -531,51 +531,111 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'close') {
       const isOpener = interaction.user.id === ticket.openerDiscordUserId;
-      if (!isOpener && !isTicketStaff)
+      if (!isOpener && !isTicketStaff) {
         return replyFailure(
           interaction,
           'Only the ticket opener or ticket staff can close this ticket.',
         );
-      if (!['open', 'claimed'].includes(ticket.status))
+      }
+      if (!['open', 'claimed', 'closing'].includes(ticket.status)) {
         return replyFailure(interaction, 'This ticket is already closed.');
+      }
+
       const reason =
         interaction.options.getString('reason')?.trim().slice(0, 500) || 'No reason provided';
+      const previousStatus =
+        ticket.status === 'closing'
+          ? ticket.claimedByDiscordUserId
+            ? 'claimed'
+            : 'open'
+          : ticket.status;
       const closedAt = new Date();
-      await channel.permissionOverwrites.edit(ticket.openerDiscordUserId, {
-        ViewChannel: true,
-        ReadMessageHistory: true,
-        SendMessages: false,
-        AddReactions: false,
-      });
-      await channel.setName(`closed-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
-      await prisma.$transaction([
-        prisma.ticket.update({
-          where: { id: ticket.id },
-          data: { status: 'closed', closeReason: reason, closedAt },
-        }),
-        prisma.auditLog.create({
-          data: {
-            guildId: guildRecord.id,
-            actorDiscordUserId: interaction.user.id,
-            action: 'ticket.closed',
-            resourceType: 'ticket',
-            resourceId: ticket.id,
-            oldValue: { status: ticket.status },
-            newValue: { status: 'closed', reason, closedAt: closedAt.toISOString() },
-            source: 'discord_bot',
-          },
-        }),
-      ]);
-      await channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x777777)
-            .setTitle(`Ticket #${ticket.ticketNumber.toString()} closed`)
-            .setDescription(`Reason: ${reason}`)
-            .setFooter({ text: `Closed by ${interaction.user.tag}` }),
-        ],
-        allowedMentions: { parse: [] },
-      });
+      if (ticket.status !== 'closing') {
+        const transition = await prisma.ticket.updateMany({
+          where: { id: ticket.id, status: { in: ['open', 'claimed'] } },
+          data: { status: 'closing' },
+        });
+        if (transition.count !== 1) {
+          return replyFailure(
+            interaction,
+            'Another ticket action is already in progress. Try again.',
+          );
+        }
+      }
+
+      const previousOverwrite = channel.permissionOverwrites.cache.get(ticket.openerDiscordUserId);
+      const previousSendMessages = previousOverwrite?.allow.has(PermissionFlagsBits.SendMessages)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.SendMessages)
+          ? false
+          : null;
+      const previousAddReactions = previousOverwrite?.allow.has(PermissionFlagsBits.AddReactions)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.AddReactions)
+          ? false
+          : null;
+      const previousChannelName = channel.name;
+
+      try {
+        await channel.permissionOverwrites.edit(ticket.openerDiscordUserId, {
+          ViewChannel: true,
+          ReadMessageHistory: true,
+          SendMessages: false,
+          AddReactions: false,
+        });
+        await channel.setName(`closed-ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
+        await prisma.$transaction([
+          prisma.ticket.update({
+            where: { id: ticket.id },
+            data: { status: 'closed', closeReason: reason, closedAt },
+          }),
+          prisma.auditLog.create({
+            data: {
+              guildId: guildRecord.id,
+              actorDiscordUserId: interaction.user.id,
+              action: 'ticket.closed',
+              resourceType: 'ticket',
+              resourceId: ticket.id,
+              oldValue: { status: previousStatus },
+              newValue: { status: 'closed', reason, closedAt: closedAt.toISOString() },
+              source: 'discord_bot',
+            },
+          }),
+        ]);
+      } catch (error) {
+        await channel
+          .permissionOverwrites.edit(ticket.openerDiscordUserId, {
+            SendMessages: previousSendMessages,
+            AddReactions: previousAddReactions,
+          })
+          .catch(() => undefined);
+        await channel.setName(previousChannelName).catch(() => undefined);
+        await prisma.ticket
+          .updateMany({
+            where: { id: ticket.id, status: 'closing' },
+            data: { status: previousStatus },
+          })
+          .catch(() => undefined);
+        throw error;
+      }
+
+      await channel
+        .send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x777777)
+              .setTitle(`Ticket #${ticket.ticketNumber.toString()} closed`)
+              .setDescription(`Reason: ${reason}`)
+              .setFooter({ text: `Closed by ${interaction.user.tag}` }),
+          ],
+          allowedMentions: { parse: [] },
+        })
+        .catch((error: unknown) => {
+          console.error(
+            'Ticket close notification failed:',
+            error instanceof Error ? error.message : 'Unknown error',
+          );
+        });
       await interaction.reply({
         content: `Ticket #${ticket.ticketNumber.toString()} has been closed.`,
         ephemeral: true,
@@ -585,48 +645,115 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'reopen') {
       const isOpener = interaction.user.id === ticket.openerDiscordUserId;
-      if (!isOpener && !isTicketStaff)
+      if (!isOpener && !isTicketStaff) {
         return replyFailure(
           interaction,
           'Only the ticket opener or ticket staff can reopen this ticket.',
         );
-      if (ticket.status !== 'closed')
+      }
+      if (!['closed', 'reopening'].includes(ticket.status)) {
         return replyFailure(interaction, 'Only closed tickets can be reopened.');
-      await channel.permissionOverwrites.edit(ticket.openerDiscordUserId, {
-        ViewChannel: true,
-        ReadMessageHistory: true,
-        SendMessages: true,
-        AttachFiles: true,
-        EmbedLinks: true,
-      });
-      await channel.setName(`ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
-      await prisma.$transaction([
-        prisma.ticket.update({
-          where: { id: ticket.id },
-          data: { status: 'open', closeReason: null, closedAt: null, claimedByDiscordUserId: null },
-        }),
-        prisma.auditLog.create({
-          data: {
-            guildId: guildRecord.id,
-            actorDiscordUserId: interaction.user.id,
-            action: 'ticket.reopened',
-            resourceType: 'ticket',
-            resourceId: ticket.id,
-            oldValue: { status: 'closed', reason: ticket.closeReason },
-            newValue: { status: 'open' },
-            source: 'discord_bot',
-          },
-        }),
-      ]);
-      await channel.send({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(0x9182ff)
-            .setTitle(`Ticket #${ticket.ticketNumber.toString()} reopened`)
-            .setDescription('The ticket is open again. Please continue the conversation here.'),
-        ],
-        allowedMentions: { parse: [] },
-      });
+      }
+
+      if (ticket.status !== 'reopening') {
+        const transition = await prisma.ticket.updateMany({
+          where: { id: ticket.id, status: 'closed' },
+          data: { status: 'reopening' },
+        });
+        if (transition.count !== 1) {
+          return replyFailure(
+            interaction,
+            'Another ticket action is already in progress. Try again.',
+          );
+        }
+      }
+
+      const previousOverwrite = channel.permissionOverwrites.cache.get(ticket.openerDiscordUserId);
+      const previousSendMessages = previousOverwrite?.allow.has(PermissionFlagsBits.SendMessages)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.SendMessages)
+          ? false
+          : null;
+      const previousAddReactions = previousOverwrite?.allow.has(PermissionFlagsBits.AddReactions)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.AddReactions)
+          ? false
+          : null;
+      const previousAttachFiles = previousOverwrite?.allow.has(PermissionFlagsBits.AttachFiles)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.AttachFiles)
+          ? false
+          : null;
+      const previousEmbedLinks = previousOverwrite?.allow.has(PermissionFlagsBits.EmbedLinks)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.EmbedLinks)
+          ? false
+          : null;
+      const previousChannelName = channel.name;
+
+      try {
+        await channel.permissionOverwrites.edit(ticket.openerDiscordUserId, {
+          ViewChannel: true,
+          ReadMessageHistory: true,
+          SendMessages: true,
+          AttachFiles: true,
+          EmbedLinks: true,
+          AddReactions: true,
+        });
+        await channel.setName(`ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`);
+        await prisma.$transaction([
+          prisma.ticket.update({
+            where: { id: ticket.id },
+            data: { status: 'open', closeReason: null, closedAt: null, claimedByDiscordUserId: null },
+          }),
+          prisma.auditLog.create({
+            data: {
+              guildId: guildRecord.id,
+              actorDiscordUserId: interaction.user.id,
+              action: 'ticket.reopened',
+              resourceType: 'ticket',
+              resourceId: ticket.id,
+              oldValue: { status: 'closed', reason: ticket.closeReason },
+              newValue: { status: 'open' },
+              source: 'discord_bot',
+            },
+          }),
+        ]);
+      } catch (error) {
+        await channel
+          .permissionOverwrites.edit(ticket.openerDiscordUserId, {
+            SendMessages: previousSendMessages,
+            AddReactions: previousAddReactions,
+            AttachFiles: previousAttachFiles,
+            EmbedLinks: previousEmbedLinks,
+          })
+          .catch(() => undefined);
+        await channel.setName(previousChannelName).catch(() => undefined);
+        await prisma.ticket
+          .updateMany({
+            where: { id: ticket.id, status: 'reopening' },
+            data: { status: 'closed' },
+          })
+          .catch(() => undefined);
+        throw error;
+      }
+
+      await channel
+        .send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x9182ff)
+              .setTitle(`Ticket #${ticket.ticketNumber.toString()} reopened`)
+              .setDescription('The ticket is open again. Please continue the conversation here.'),
+          ],
+          allowedMentions: { parse: [] },
+        })
+        .catch((error: unknown) => {
+          console.error(
+            'Ticket reopen notification failed:',
+            error instanceof Error ? error.message : 'Unknown error',
+          );
+        });
       await interaction.reply({
         content: `Ticket #${ticket.ticketNumber.toString()} has been reopened.`,
         ephemeral: true,

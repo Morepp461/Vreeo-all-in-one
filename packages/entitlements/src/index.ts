@@ -47,6 +47,7 @@ function isCandidateActive(candidate: EntitlementCandidate, now: Date): boolean 
     case "past_due":
     case "expired":
     case undefined:
+    default:
       return false;
   }
 }

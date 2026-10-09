@@ -153,7 +153,7 @@ export async function fetchLiveDiscordPermissionSnapshot(
   if (!isSnowflake(input.guildId) || !isSnowflake(input.actorDiscordUserId)) {
     throw new TypeError("Guild and actor IDs must be Discord snowflakes");
   }
-  const context = { guildId: input.guildId, correlationId: input.correlationId };
+  const context = { guildId: input.guildId, ...(input.correlationId ? { correlationId: input.correlationId } : {}) };
   const [guildPayload, rolesPayload, memberPayload] = await Promise.all([
     service.request<unknown>({ method: "GET", route: `/guilds/${input.guildId}`, context: { ...context, operation: "authorization.guild.fetch" } }),
     service.request<unknown>({ method: "GET", route: `/guilds/${input.guildId}/roles`, context: { ...context, operation: "authorization.roles.fetch" } }),

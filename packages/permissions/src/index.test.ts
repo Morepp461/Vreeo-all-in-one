@@ -77,8 +77,7 @@ describe("permission evaluation", () => {
       discord: { requiredPermissions: ["BanMembers"], grantedPermissions: [] },
     })).toEqual({ allowed: false, reasons: ["MISSING_DISCORD_PERMISSION"] });
     expect(evaluatePermission({
-      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
-      roleGrants: [],
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], roleGrants: [], defaultPermissions: [permission],
       discord: { requiredPermissions: [], grantedPermissions: [], botHierarchyAllowed: false },
     })).toEqual({ allowed: false, reasons: ["BOT_HIERARCHY_BLOCKED"] });
   });
@@ -97,6 +96,13 @@ describe("permission evaluation", () => {
       authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [],
       roleGrants: [{ guildId: "another-guild", discordRoleId: "role-moderator", permissionSet: { "moderation.warn": true } }],
       defaultPermissions: [],
+    })).toEqual({ allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] });
+
+    expect(evaluatePermission({
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission,
+      overrides: [roleAllow],
+      roleGrants: [{ guildId: "guild-1", discordRoleId: "role-community", permissionSet: { "moderation.warn": false } }],
+      defaultPermissions: [permission],
     })).toEqual({ allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] });
   });
 

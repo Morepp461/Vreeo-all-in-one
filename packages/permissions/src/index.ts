@@ -45,7 +45,7 @@ export interface EvaluatePermissionInput {
   discord?: DiscordPermissionContext;
 }
 
-function resolveOverride(
+function resolveUserOverride(
   overrides: readonly PermissionOverride[],
   actor: ActorContext,
   permission: PermissionKey,
@@ -58,15 +58,6 @@ function resolveOverride(
   );
   if (userOverrides.some((item) => item.effect === "deny")) return "deny";
   if (userOverrides.some((item) => item.effect === "allow")) return "allow";
-
-  const roleIds = new Set(actor.roleIds);
-  const roleOverrides = overrides.filter((item) =>
-    item.permission === permission &&
-    item.subjectType === "role" &&
-    roleIds.has(item.subjectId)
-  );
-  if (roleOverrides.some((item) => item.effect === "deny")) return "deny";
-  if (roleOverrides.some((item) => item.effect === "allow")) return "allow";
   return undefined;
 }
 
@@ -94,17 +85,23 @@ export function evaluatePermission(input: EvaluatePermissionInput): Authorizatio
   }
   if (reasons.length > 0) return { allowed: false, reasons };
 
-  const override = resolveOverride(input.overrides, input.actor, permission);
-  if (override === "allow") return { allowed: true, reasons: [] };
-  if (override === "deny") return { allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] };
+  const userOverride = resolveUserOverride(input.overrides, input.actor, permission);
+  if (userOverride === "allow") return { allowed: true, reasons: [] };
+  if (userOverride === "deny") return { allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] };
 
   const assignedRoleIds = new Set(input.actor.roleIds);
-  const roleEffects = input.roleGrants
+  const roleOverrides = input.overrides.filter((item) =>
+    item.permission === permission &&
+    item.subjectType === "role" &&
+    assignedRoleIds.has(item.subjectId)
+  );
+  const roleGrantEffects = input.roleGrants
     .filter((grant) => grant.guildId === input.requestedGuildId && assignedRoleIds.has(grant.discordRoleId))
     .map((grant) => {
       const value = grant.permissionSet[permission];
       return value === true ? "allow" as const : value === false ? "deny" as const : undefined;
     });
+  const roleEffects = [...roleOverrides.map((item) => item.effect), ...roleGrantEffects];
   if (roleEffects.includes("deny")) return { allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] };
   if (roleEffects.includes("allow")) return { allowed: true, reasons: [] };
 

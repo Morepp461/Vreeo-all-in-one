@@ -30,7 +30,7 @@ export const helpCommand: VreeoCommand = {
         {
           name: 'Support',
           value:
-            '`/ticket setup` — configure ticket category and staff role\n`/ticket open` — open a private support channel\n`/ticket claim` — claim a ticket\n`/ticket close` — close a ticket\n`/ticket reopen` — reopen a closed ticket\n`/ticket list` — list active tickets',
+            '`/ticket setup` — configure ticket category and staff role\n`/ticket panel` — publish a persistent ticket panel\n`/ticket open` — open a private support channel\n`/ticket claim` — claim a ticket\n`/ticket close` — close a ticket\n`/ticket reopen` — reopen a closed ticket\n`/ticket list` — list active tickets',
         },
       )
       .setFooter({ text: 'VREEO • AI is not part of V1' });

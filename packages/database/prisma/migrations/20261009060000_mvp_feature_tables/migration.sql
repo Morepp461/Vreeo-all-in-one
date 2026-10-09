@@ -158,7 +158,6 @@ CREATE TABLE "payments" (
   CONSTRAINT "payments_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "automod_rules_id" ON "automod_rules"("id");
 CREATE INDEX "automod_rules_guild_id_enabled_priority_idx" ON "automod_rules"("guild_id", "enabled", "priority");
 CREATE INDEX "automod_events_guild_id_created_at_idx" ON "automod_events"("guild_id", "created_at");
 CREATE INDEX "automod_events_discord_user_id_created_at_idx" ON "automod_events"("discord_user_id", "created_at");

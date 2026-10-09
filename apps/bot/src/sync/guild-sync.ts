@@ -156,9 +156,9 @@ export async function syncGuildMember(member: GuildMember, database: DatabaseCli
   });
 }
 
-export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseClient, internalGuildId: string): Promise<number> {
-  // GuildMembers is a privileged Discord intent. If it is unavailable, the caller logs the failure and owner access remains available.
-  const members = [...(await guild.members.fetch()).values()];
+export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseClient, internalGuildId: string, snapshot: readonly GuildMember[]): Promise<number> {
+  const members = [...snapshot];
+  const snapshotStartedAt = new Date();
   const memberIds = members.map((member) => member.id);
   const knownUsers: Array<{ id: string; discordUserId: string }> = [];
   for (let offset = 0; offset < memberIds.length; offset += 500) {
@@ -175,23 +175,30 @@ export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseCl
 
   const existingMembers = await database.guildMember.findMany({
     where: { guildId: internalGuildId, isMember: true },
-    select: { id: true, discordUserId: true },
+    select: { id: true, discordUserId: true, updatedAt: true },
   });
   const currentIds = new Set(memberIds);
-  const departed = existingMembers.filter((member) => !currentIds.has(member.discordUserId));
-  if (departed.length > 0) {
-    const now = new Date();
-    for (let offset = 0; offset < departed.length; offset += 500) {
-      const departedIds = departed.slice(offset, offset + 500).map((member) => member.id);
-      await database.guildMember.updateMany({
-        where: { id: { in: departedIds }, isMember: true },
+  const departed = existingMembers.filter((member) => !currentIds.has(member.discordUserId) && member.updatedAt <= snapshotStartedAt);
+  for (const member of departed) {
+    await withMemberLock(`${guild.id}:${member.discordUserId}`, async () => {
+      const current = await database.guildMember.findUnique({
+        where: { id: member.id },
+        select: { id: true, isMember: true, updatedAt: true },
+      });
+      // Do not let a stale startup snapshot override a newer join/update event.
+      if (!current || !current.isMember || current.updatedAt > snapshotStartedAt) return;
+      const now = new Date();
+      const changed = await database.guildMember.updateMany({
+        where: { id: current.id, isMember: true, updatedAt: { lte: snapshotStartedAt } },
         data: { isMember: false, leftAt: now },
       });
-      await database.guildMemberRole.updateMany({
-        where: { memberId: { in: departedIds }, removedAt: null },
-        data: { removedAt: now },
-      });
-    }
+      if (changed.count > 0) {
+        await database.guildMemberRole.updateMany({
+          where: { memberId: current.id, removedAt: null },
+          data: { removedAt: now },
+        });
+      }
+    });
   }
   return members.length;
 }
@@ -215,11 +222,13 @@ export async function syncGuildSnapshot(guild: Guild, database: DatabaseClient):
   const guildId = await syncGuildMetadata(guild, database);
   await syncGuildRoles(guild, database, guildId);
   await syncGuildChannels(guild, database, guildId);
-  let memberCount: number | null = null;
+  let snapshot: GuildMember[];
   try {
-    memberCount = await syncGuildMemberSnapshot(guild, database, guildId);
+    // GuildMembers is a privileged Discord intent. Basic guild metadata remains useful if it is unavailable.
+    snapshot = [...(await guild.members.fetch()).values()];
   } catch {
-    // A missing privileged intent or transient Discord error must not prevent basic guild metadata from syncing.
+    return { guildId, memberCount: null };
   }
+  const memberCount = await syncGuildMemberSnapshot(guild, database, guildId, snapshot);
   return { guildId, memberCount };
 }

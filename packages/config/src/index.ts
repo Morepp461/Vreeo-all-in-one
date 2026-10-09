@@ -59,8 +59,13 @@ const apiSchema = baseSchema.extend({
 });
 const botSchema = baseSchema.extend({
   DISCORD_TOKEN: z.string().trim().min(1, "DISCORD_TOKEN is required to run the bot"),
+  DATABASE_URL: postgresUrlSchema.optional(),
   DISCORD_CLIENT_ID: z.string().trim().optional(),
   DISCORD_DEV_GUILD_ID: z.string().trim().optional(),
+}).superRefine((value, context) => {
+  if (value.NODE_ENV === "production" && !value.DATABASE_URL) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["DATABASE_URL"], message: "is required in production" });
+  }
 });
 
 type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
@@ -71,7 +76,7 @@ export type ApiConfig = BaseConfig & {
   discordOAuth: DiscordOAuthConfig | null; appBaseUrl: string; sessionTtlSeconds: number;
   sessionCookieName: string; sessionCookieSameSite: "lax" | "strict" | "none"; sessionCookieSecure: boolean;
 };
-export type BotConfig = BaseConfig & { discordToken: string; discordClientId?: string; discordDevGuildId?: string };
+export type BotConfig = BaseConfig & { discordToken: string; databaseUrl: string; discordClientId?: string; discordDevGuildId?: string };
 
 function parse<T extends z.ZodTypeAny>(schema: T, environment: NodeJS.ProcessEnv): z.infer<T> {
   const result = schema.safeParse(environment);
@@ -101,6 +106,7 @@ export function loadBotConfig(environment: NodeJS.ProcessEnv = process.env): Bot
   const value = parse(botSchema, environment);
   return {
     nodeEnv: value.NODE_ENV, logLevel: value.LOG_LEVEL, discordToken: value.DISCORD_TOKEN,
+    databaseUrl: value.DATABASE_URL ?? "postgresql://vreeo:vreeo_dev_only@127.0.0.1:5432/vreeo?schema=public",
     ...(value.DISCORD_CLIENT_ID ? { discordClientId: value.DISCORD_CLIENT_ID } : {}),
     ...(value.DISCORD_DEV_GUILD_ID ? { discordDevGuildId: value.DISCORD_DEV_GUILD_ID } : {}),
   };

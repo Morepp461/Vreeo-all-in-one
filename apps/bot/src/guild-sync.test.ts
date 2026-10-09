@@ -11,8 +11,14 @@ const guild: DiscordGuildSnapshot = {
 class MemoryGuildSyncRepository implements GuildSyncRepository {
   readonly upserts: Array<{ snapshot: DiscordGuildSnapshot; observedAt: Date; botJoinedAt?: Date }> = [];
   readonly inactive: Array<{ id: string; at: Date }> = [];
+  activeCalls = 0;
+  maxActiveCalls = 0;
   async upsertGuild(snapshot: DiscordGuildSnapshot, observedAt: Date, botJoinedAt?: Date): Promise<void> {
+    this.activeCalls += 1;
+    this.maxActiveCalls = Math.max(this.maxActiveCalls, this.activeCalls);
+    await Promise.resolve();
     this.upserts.push({ snapshot, observedAt, ...(botJoinedAt ? { botJoinedAt } : {}) });
+    this.activeCalls -= 1;
   }
   async markGuildInactive(discordGuildId: string, observedAt: Date): Promise<void> {
     this.inactive.push({ id: discordGuildId, at: observedAt });
@@ -46,6 +52,7 @@ describe("guild synchronization service", () => {
     })), at);
     expect(failures).toEqual([]);
     expect(repository.upserts).toHaveLength(23);
+    expect(repository.maxActiveCalls).toBeLessThanOrEqual(10);
     expect(repository.inactive).toEqual([{ id: guild.discordGuildId, at }]);
   });
 });

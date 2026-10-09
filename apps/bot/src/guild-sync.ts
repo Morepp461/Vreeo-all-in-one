@@ -80,6 +80,11 @@ export class PrismaGuildSyncRepository implements GuildSyncRepository {
   constructor(private readonly database: PrismaClient) {}
 
   async upsertGuild(snapshot: DiscordGuildSnapshot, observedAt: Date, botJoinedAt?: Date): Promise<void> {
+    const existing = await this.database.guild.findUnique({
+      where: { discordGuildId: snapshot.discordGuildId },
+      select: { active: true },
+    });
+    const joinedAt = botJoinedAt && existing?.active === false ? botJoinedAt : botJoinedAt && !existing ? botJoinedAt : undefined;
     await this.database.guild.upsert({
       where: { discordGuildId: snapshot.discordGuildId },
       create: {
@@ -88,7 +93,7 @@ export class PrismaGuildSyncRepository implements GuildSyncRepository {
         iconUrl: snapshot.iconUrl,
         ownerDiscordUserId: snapshot.ownerDiscordUserId,
         active: true,
-        botJoinedAt: botJoinedAt ?? null,
+        botJoinedAt: joinedAt ?? null,
         lastSeenAt: observedAt,
       },
       update: {
@@ -97,6 +102,7 @@ export class PrismaGuildSyncRepository implements GuildSyncRepository {
         ownerDiscordUserId: snapshot.ownerDiscordUserId,
         active: true,
         lastSeenAt: observedAt,
+        ...(joinedAt ? { botJoinedAt: joinedAt } : {}),
       },
     });
   }

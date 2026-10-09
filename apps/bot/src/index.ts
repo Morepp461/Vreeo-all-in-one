@@ -23,22 +23,26 @@ function snapshotFromGuild(guild: Guild): DiscordGuildSnapshot {
   };
 }
 
-async function closeRuntime(): Promise<void> {
-  client.destroy();
-  try {
-    await database.$disconnect();
-  } catch (error) {
-    logger.error({ errorName: error instanceof Error ? error.name : "UnknownError" }, "Database disconnect failed");
-    process.exitCode = 1;
-  }
+let shuttingDown = false;
+let closePromise: Promise<void> | undefined;
+function closeRuntime(reason?: string): Promise<void> {
+  if (closePromise) return closePromise;
+  shuttingDown = true;
+  if (reason) logger.info({ reason }, "Shutting down Discord bot");
+  closePromise = (async () => {
+    client.destroy();
+    try {
+      await database.$disconnect();
+    } catch (error) {
+      logger.error({ errorName: error instanceof Error ? error.name : "UnknownError" }, "Database disconnect failed");
+      process.exitCode = 1;
+    }
+  })();
+  return closePromise;
 }
 
-let shuttingDown = false;
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  logger.info({ signal }, "Shutting down Discord bot");
-  await closeRuntime();
+  await closeRuntime(signal);
 };
 
 client.once(Events.ClientReady, (readyClient) => {
@@ -48,26 +52,33 @@ client.once(Events.ClientReady, (readyClient) => {
     if (failures.length > 0) {
       logger.fatal({ failedGuildCount: failures.length, guildIds: failures.map((item) => item.discordGuildId) }, "Guild metadata synchronization failed");
       process.exitCode = 1;
-      await closeRuntime();
+      await closeRuntime("guild_sync_failure");
       return;
     }
     logger.info({ syncedGuildCount: readyClient.guilds.cache.size }, "Guild metadata synchronized");
   })().catch(async (error: unknown) => {
     logger.fatal({ errorName: error instanceof Error ? error.name : "UnknownError" }, "Guild metadata synchronization failed");
     process.exitCode = 1;
-    await closeRuntime();
+    await closeRuntime("guild_sync_failure");
   });
 });
 
 client.on(Events.GuildCreate, (guild) => {
+  if (shuttingDown) return;
   void guildSync.syncGuild(snapshotFromGuild(guild), { botJoinedAt: new Date() })
     .catch((error: unknown) => logger.error({ guildId: guild.id, errorName: error instanceof Error ? error.name : "UnknownError" }, "Guild metadata synchronization failed"));
 });
 client.on(Events.GuildUpdate, (_oldGuild, newGuild) => {
+  if (shuttingDown) return;
   void guildSync.syncGuild(snapshotFromGuild(newGuild))
     .catch((error: unknown) => logger.error({ guildId: newGuild.id, errorName: error instanceof Error ? error.name : "UnknownError" }, "Guild metadata synchronization failed"));
 });
 client.on(Events.GuildDelete, (guild) => {
+  if (shuttingDown) return;
+  if (guild.available === false) {
+    logger.warn({ guildId: guild.id }, "Discord guild is temporarily unavailable; preserving its active state");
+    return;
+  }
   void guildSync.markGuildInactive(guild.id)
     .catch((error: unknown) => logger.error({ guildId: guild.id, errorName: error instanceof Error ? error.name : "UnknownError" }, "Guild deactivation sync failed"));
 });
@@ -81,6 +92,6 @@ try {
   await client.login(config.discordToken);
 } catch (error) {
   logger.fatal({ errorName: error instanceof Error ? error.name : "UnknownError" }, "Discord bot failed to start");
-  await closeRuntime();
+  await closeRuntime("startup_failure");
   process.exitCode = 1;
 }

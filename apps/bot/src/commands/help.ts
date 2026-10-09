@@ -25,7 +25,7 @@ export const helpCommand: VreeoCommand = {
         {
           name: 'Moderation',
           value:
-            '`/warn` — issue a warning\n`/timeout` — temporarily restrict a member\n`/kick` — remove a member\n`/ban` — ban a user\n`/case` — view a case\n`/warnings` — view warning history\n`/automod` — manage keyword filters\n`/ticket setup|open|claim|close|reopen|list` — manage private support tickets',
+            '`/warn` — issue a warning\n`/timeout` — temporarily restrict a member\n`/kick` — remove a member\n`/ban` — ban a user\n`/case` — view a case\n`/warnings` — view warning history\n`/automod` — manage keyword filters',
         },
         {
           name: 'Support',

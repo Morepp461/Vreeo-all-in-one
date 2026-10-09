@@ -1,9 +1,4 @@
-import {
-  ChannelType,
-  EmbedBuilder,
-  PermissionFlagsBits,
-  SlashCommandBuilder,
-} from 'discord.js';
+import { ChannelType, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import { prisma } from '@vreeo/database/client';
 import type { VreeoCommand } from './types.js';
 import { syncGuild } from '../services/guild-sync.js';
@@ -19,12 +14,17 @@ function readObject(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function readTicketSettings(config: unknown, staffRoleId: string | null | undefined): TicketSettings {
+function readTicketSettings(
+  config: unknown,
+  staffRoleId: string | null | undefined,
+): TicketSettings {
   const object = readObject(config);
   const category = object.ticketCategoryId;
   return {
-    ticketCategoryId: typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
-    staffRoleId: typeof staffRoleId === 'string' && /^\d{17,20}$/.test(staffRoleId) ? staffRoleId : null,
+    ticketCategoryId:
+      typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
+    staffRoleId:
+      typeof staffRoleId === 'string' && /^\d{17,20}$/.test(staffRoleId) ? staffRoleId : null,
   };
 }
 
@@ -102,9 +102,7 @@ export const ticketCommand: VreeoCommand = {
         ),
     )
     .addSubcommand((subcommand) =>
-      subcommand
-        .setName('claim')
-        .setDescription('Claim the ticket in the current channel.'),
+      subcommand.setName('claim').setDescription('Claim the ticket in the current channel.'),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -119,14 +117,10 @@ export const ticketCommand: VreeoCommand = {
         ),
     )
     .addSubcommand((subcommand) =>
-      subcommand
-        .setName('reopen')
-        .setDescription('Reopen a closed ticket in the current channel.'),
+      subcommand.setName('reopen').setDescription('Reopen a closed ticket in the current channel.'),
     )
     .addSubcommand((subcommand) =>
-      subcommand
-        .setName('list')
-        .setDescription('List the latest active tickets (staff only).'),
+      subcommand.setName('list').setDescription('List the latest active tickets (staff only).'),
     ),
   async execute(interaction) {
     if (!interaction.guild) {
@@ -139,10 +133,16 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'setup') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        return replyFailure(interaction, 'You need the Manage Server permission to configure tickets.');
+        return replyFailure(
+          interaction,
+          'You need the Manage Server permission to configure tickets.',
+        );
       }
       if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-        return replyFailure(interaction, 'VREEO needs the Manage Channels permission to configure tickets.');
+        return replyFailure(
+          interaction,
+          'VREEO needs the Manage Channels permission to configure tickets.',
+        );
       }
 
       const category = interaction.options.getChannel('category', true);
@@ -151,7 +151,10 @@ export const ticketCommand: VreeoCommand = {
       }
       const staffRole = interaction.options.getRole('staff_role');
       if (staffRole && staffRole.id === guild.id) {
-        return replyFailure(interaction, 'The @everyone role cannot be used as the ticket staff role.');
+        return replyFailure(
+          interaction,
+          'The @everyone role cannot be used as the ticket staff role.',
+        );
       }
 
       await interaction.deferReply({ ephemeral: true });
@@ -189,15 +192,24 @@ export const ticketCommand: VreeoCommand = {
           `Ticket category set to **${category.name}**${staffRole ? ` and staff role set to <@&${staffRole.id}>` : ''}.`,
         );
       } catch (error) {
-        console.error('Ticket setup failed:', error instanceof Error ? error.message : 'Unknown error');
-        await replyFailure(interaction, 'Ticket setup failed. Please check the bot permissions and try again.');
+        console.error(
+          'Ticket setup failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        await replyFailure(
+          interaction,
+          'Ticket setup failed. Please check the bot permissions and try again.',
+        );
       }
       return;
     }
 
     if (subcommand === 'open') {
       if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-        return replyFailure(interaction, 'VREEO needs the Manage Channels permission to open tickets.');
+        return replyFailure(
+          interaction,
+          'VREEO needs the Manage Channels permission to open tickets.',
+        );
       }
       const subject = interaction.options.getString('subject', true).trim();
       if (subject.length < 3) {
@@ -206,14 +218,23 @@ export const ticketCommand: VreeoCommand = {
 
       const settings = await loadTicketSettings(guildRecord.id);
       if (!settings.ticketCategoryId) {
-        return replyFailure(interaction, 'Tickets are not configured yet. Ask a server administrator to run /ticket setup.');
+        return replyFailure(
+          interaction,
+          'Tickets are not configured yet. Ask a server administrator to run /ticket setup.',
+        );
       }
       const category = await guild.channels.fetch(settings.ticketCategoryId).catch(() => null);
       if (!category || category.type !== ChannelType.GuildCategory) {
-        return replyFailure(interaction, 'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.');
+        return replyFailure(
+          interaction,
+          'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.',
+        );
       }
       if (settings.staffRoleId && !guild.roles.cache.has(settings.staffRoleId)) {
-        return replyFailure(interaction, 'The configured ticket staff role no longer exists. Ask an administrator to run /ticket setup again.');
+        return replyFailure(
+          interaction,
+          'The configured ticket staff role no longer exists. Ask an administrator to run /ticket setup again.',
+        );
       }
 
       await interaction.deferReply({ ephemeral: true });
@@ -276,14 +297,16 @@ export const ticketCommand: VreeoCommand = {
             ],
           },
           ...(settings.staffRoleId
-            ? [{
-                id: settings.staffRoleId,
-                allow: [
-                  PermissionFlagsBits.ViewChannel,
-                  PermissionFlagsBits.SendMessages,
-                  PermissionFlagsBits.ReadMessageHistory,
-                ],
-              }]
+            ? [
+                {
+                  id: settings.staffRoleId,
+                  allow: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.ReadMessageHistory,
+                  ],
+                },
+              ]
             : []),
         ];
 
@@ -291,7 +314,11 @@ export const ticketCommand: VreeoCommand = {
           name: `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`,
           type: ChannelType.GuildText,
           parent: category.id,
-          topic: `VREEO ticket #${ticket.ticketNumber.toString()} • Opener: ${interaction.user.id} • Subject: ${subject}`.slice(0, 1024),
+          topic:
+            `VREEO ticket #${ticket.ticketNumber.toString()} • Opener: ${interaction.user.id} • Subject: ${subject}`.slice(
+              0,
+              1024,
+            ),
           permissionOverwrites: overwrites,
           reason: `VREEO ticket #${ticket.ticketNumber.toString()} opened by ${interaction.user.id}`,
         });
@@ -329,25 +356,44 @@ export const ticketCommand: VreeoCommand = {
         await interaction.editReply(`Your ticket has been opened: <#${channel.id}>`);
       } catch (error) {
         if (channelId) {
-          await guild.channels.delete(channelId, 'VREEO ticket database persistence failed').catch((rollbackError: unknown) => {
-            console.error('Ticket channel rollback failed:', rollbackError instanceof Error ? rollbackError.message : 'Unknown error');
-          });
+          await guild.channels
+            .delete(channelId, 'VREEO ticket database persistence failed')
+            .catch((rollbackError: unknown) => {
+              console.error(
+                'Ticket channel rollback failed:',
+                rollbackError instanceof Error ? rollbackError.message : 'Unknown error',
+              );
+            });
         }
         if (ticket) {
-          await prisma.ticket.update({
-            where: { id: ticket.id },
-            data: { status: 'failed', closedAt: new Date(), closeReason: 'Ticket channel creation failed.' },
-          }).catch(() => undefined);
+          await prisma.ticket
+            .update({
+              where: { id: ticket.id },
+              data: {
+                status: 'failed',
+                closedAt: new Date(),
+                closeReason: 'Ticket channel creation failed.',
+              },
+            })
+            .catch(() => undefined);
           await writeTicketAudit({
             guildId: guildRecord.id,
             actorId: interaction.user.id,
             action: 'ticket.creation.failed',
             ticketId: ticket.id,
-            newValue: { error: error instanceof Error ? error.message.slice(0, 200) : 'Unknown error' },
+            newValue: {
+              error: error instanceof Error ? error.message.slice(0, 200) : 'Unknown error',
+            },
           }).catch(() => undefined);
         }
-        console.error('Ticket creation failed:', error instanceof Error ? error.message : 'Unknown error');
-        await replyFailure(interaction, 'VREEO could not create the ticket. Check channel permissions and try again.');
+        console.error(
+          'Ticket creation failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        await replyFailure(
+          interaction,
+          'VREEO could not create the ticket. Check channel permissions and try again.',
+        );
       }
       return;
     }
@@ -356,19 +402,36 @@ export const ticketCommand: VreeoCommand = {
     const isTicketStaff = isStaff(interaction, settings.staffRoleId);
 
     if (subcommand === 'list') {
-      if (!isTicketStaff) return replyFailure(interaction, 'Only configured ticket staff or members with Manage Channels can list tickets.');
+      if (!isTicketStaff)
+        return replyFailure(
+          interaction,
+          'Only configured ticket staff or members with Manage Channels can list tickets.',
+        );
       const tickets = await prisma.ticket.findMany({
         where: { guildId: guildRecord.id, status: { in: ['open', 'claimed'] } },
         orderBy: { createdAt: 'desc' },
         take: 10,
-        select: { ticketNumber: true, channelDiscordId: true, openerDiscordUserId: true, claimedByDiscordUserId: true, status: true, subject: true, createdAt: true },
+        select: {
+          ticketNumber: true,
+          channelDiscordId: true,
+          openerDiscordUserId: true,
+          claimedByDiscordUserId: true,
+          status: true,
+          subject: true,
+          createdAt: true,
+        },
       });
       const embed = new EmbedBuilder()
         .setColor(0x9182ff)
         .setTitle('VREEO · Active tickets')
         .setDescription(
           tickets.length
-            ? tickets.map((item) => `**#${item.ticketNumber.toString()}** · ${item.status === 'claimed' ? `Claimed by <@${item.claimedByDiscordUserId}>` : 'Open'}\n<@&${settings.staffRoleId ?? guild.id}> <@${item.openerDiscordUserId}> · ${item.subject ?? 'No subject'}\n${item.channelDiscordId ? `<#${item.channelDiscordId}>` : 'Channel pending'}`).join('\n\n')
+            ? tickets
+                .map(
+                  (item) =>
+                    `**#${item.ticketNumber.toString()}** · ${item.status === 'claimed' ? `Claimed by <@${item.claimedByDiscordUserId}>` : 'Open'}\n<@&${settings.staffRoleId ?? guild.id}> <@${item.openerDiscordUserId}> · ${item.subject ?? 'No subject'}\n${item.channelDiscordId ? `<#${item.channelDiscordId}>` : 'Channel pending'}`,
+                )
+                .join('\n\n')
             : 'There are no active tickets.',
         )
         .setFooter({ text: 'Showing up to 10 active tickets' });
@@ -378,22 +441,44 @@ export const ticketCommand: VreeoCommand = {
 
     const currentChannelId = interaction.channelId;
     const ticket = await prisma.ticket.findUnique({
-      where: { guildId_channelDiscordId: { guildId: guildRecord.id, channelDiscordId: currentChannelId } },
-      select: { id: true, ticketNumber: true, channelDiscordId: true, openerDiscordUserId: true, claimedByDiscordUserId: true, status: true, subject: true, closeReason: true },
+      where: {
+        guildId_channelDiscordId: { guildId: guildRecord.id, channelDiscordId: currentChannelId },
+      },
+      select: {
+        id: true,
+        ticketNumber: true,
+        channelDiscordId: true,
+        openerDiscordUserId: true,
+        claimedByDiscordUserId: true,
+        status: true,
+        subject: true,
+        closeReason: true,
+      },
     });
     if (!ticket || !ticket.channelDiscordId) {
       return replyFailure(interaction, 'This command must be used inside a VREEO ticket channel.');
     }
     const channel = await guild.channels.fetch(ticket.channelDiscordId).catch(() => null);
     if (!channel || channel.type !== ChannelType.GuildText) {
-      return replyFailure(interaction, 'The ticket channel is missing or is not a text channel. An administrator may need to reconcile this ticket.');
+      return replyFailure(
+        interaction,
+        'The ticket channel is missing or is not a text channel. An administrator may need to reconcile this ticket.',
+      );
     }
 
     if (subcommand === 'claim') {
-      if (!isTicketStaff) return replyFailure(interaction, 'Only configured ticket staff or members with Manage Channels can claim tickets.');
-      if (!['open', 'claimed'].includes(ticket.status)) return replyFailure(interaction, 'Only active tickets can be claimed.');
+      if (!isTicketStaff)
+        return replyFailure(
+          interaction,
+          'Only configured ticket staff or members with Manage Channels can claim tickets.',
+        );
+      if (!['open', 'claimed'].includes(ticket.status))
+        return replyFailure(interaction, 'Only active tickets can be claimed.');
       if (ticket.claimedByDiscordUserId && ticket.claimedByDiscordUserId !== interaction.user.id) {
-        return replyFailure(interaction, `This ticket is already claimed by <@${ticket.claimedByDiscordUserId}>.`);
+        return replyFailure(
+          interaction,
+          `This ticket is already claimed by <@${ticket.claimedByDiscordUserId}>.`,
+        );
       }
       const result = await prisma.ticket.updateMany({
         where: {
@@ -403,7 +488,11 @@ export const ticketCommand: VreeoCommand = {
         },
         data: { status: 'claimed', claimedByDiscordUserId: interaction.user.id },
       });
-      if (result.count !== 1) return replyFailure(interaction, 'Another staff member claimed this ticket first. Refresh and try again.');
+      if (result.count !== 1)
+        return replyFailure(
+          interaction,
+          'Another staff member claimed this ticket first. Refresh and try again.',
+        );
       await writeTicketAudit({
         guildId: guildRecord.id,
         actorId: interaction.user.id,
@@ -416,15 +505,24 @@ export const ticketCommand: VreeoCommand = {
         content: `Ticket #${ticket.ticketNumber.toString()} claimed by <@${interaction.user.id}>.`,
         allowedMentions: { parse: [] },
       });
-      await channel.send({ content: `This ticket is now being handled by <@${interaction.user.id}>.`, allowedMentions: { parse: [] } });
+      await channel.send({
+        content: `This ticket is now being handled by <@${interaction.user.id}>.`,
+        allowedMentions: { parse: [] },
+      });
       return;
     }
 
     if (subcommand === 'close') {
       const isOpener = interaction.user.id === ticket.openerDiscordUserId;
-      if (!isOpener && !isTicketStaff) return replyFailure(interaction, 'Only the ticket opener or ticket staff can close this ticket.');
-      if (!['open', 'claimed'].includes(ticket.status)) return replyFailure(interaction, 'This ticket is already closed.');
-      const reason = interaction.options.getString('reason')?.trim().slice(0, 500) || 'No reason provided';
+      if (!isOpener && !isTicketStaff)
+        return replyFailure(
+          interaction,
+          'Only the ticket opener or ticket staff can close this ticket.',
+        );
+      if (!['open', 'claimed'].includes(ticket.status))
+        return replyFailure(interaction, 'This ticket is already closed.');
+      const reason =
+        interaction.options.getString('reason')?.trim().slice(0, 500) || 'No reason provided';
       const closedAt = new Date();
       await channel.permissionOverwrites.edit(ticket.openerDiscordUserId, {
         ViewChannel: true,
@@ -461,14 +559,22 @@ export const ticketCommand: VreeoCommand = {
         ],
         allowedMentions: { parse: [] },
       });
-      await interaction.reply({ content: `Ticket #${ticket.ticketNumber.toString()} has been closed.`, ephemeral: true });
+      await interaction.reply({
+        content: `Ticket #${ticket.ticketNumber.toString()} has been closed.`,
+        ephemeral: true,
+      });
       return;
     }
 
     if (subcommand === 'reopen') {
       const isOpener = interaction.user.id === ticket.openerDiscordUserId;
-      if (!isOpener && !isTicketStaff) return replyFailure(interaction, 'Only the ticket opener or ticket staff can reopen this ticket.');
-      if (ticket.status !== 'closed') return replyFailure(interaction, 'Only closed tickets can be reopened.');
+      if (!isOpener && !isTicketStaff)
+        return replyFailure(
+          interaction,
+          'Only the ticket opener or ticket staff can reopen this ticket.',
+        );
+      if (ticket.status !== 'closed')
+        return replyFailure(interaction, 'Only closed tickets can be reopened.');
       await channel.permissionOverwrites.edit(ticket.openerDiscordUserId, {
         ViewChannel: true,
         ReadMessageHistory: true,
@@ -504,7 +610,10 @@ export const ticketCommand: VreeoCommand = {
         ],
         allowedMentions: { parse: [] },
       });
-      await interaction.reply({ content: `Ticket #${ticket.ticketNumber.toString()} has been reopened.`, ephemeral: true });
+      await interaction.reply({
+        content: `Ticket #${ticket.ticketNumber.toString()} has been reopened.`,
+        ephemeral: true,
+      });
     }
   },
 };

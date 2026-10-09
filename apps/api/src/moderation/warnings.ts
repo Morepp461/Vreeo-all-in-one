@@ -89,6 +89,15 @@ export async function createWarning(database: PrismaClient, input: CreateWarning
     }
     if (prior) await tx.idempotencyKey.delete({ where: { id: prior.id } });
 
+    const guild = await tx.guild.findUnique({ where: { id: input.guildId }, select: { active: true, botJoinedAt: true } });
+    if (!guild || !guild.active || guild.botJoinedAt === null) throw new WarningValidationError("The target guild is not active.");
+    if (input.actorUserId) {
+      const actor = await tx.user.findUnique({ where: { id: input.actorUserId }, select: { discordUserId: true, deletedAt: true } });
+      if (!actor || actor.deletedAt !== null || actor.discordUserId !== input.moderatorDiscordUserId) {
+        throw new WarningValidationError("The authenticated actor does not match the moderator identity.");
+      }
+    }
+
     await tx.idempotencyKey.create({
       data: { scope, keyHash, requestHash, expiresAt: input.idempotencyExpiresAt },
     });

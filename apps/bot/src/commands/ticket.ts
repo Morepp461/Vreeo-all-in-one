@@ -66,6 +66,16 @@ async function writeTicketAudit(input: {
   });
 }
 
+function ticketFailure(
+  interaction: Parameters<VreeoCommand['execute']>[0],
+  message: string,
+) {
+  if (interaction.deferred && !interaction.replied) {
+    return interaction.editReply({ content: message, allowedMentions: { parse: [] } });
+  }
+  return replyFailure(interaction, message);
+}
+
 export const ticketCommand: VreeoCommand = {
   data: new SlashCommandBuilder()
     .setName('ticket')
@@ -130,7 +140,7 @@ export const ticketCommand: VreeoCommand = {
     ),
   async execute(interaction) {
     if (!interaction.guild) {
-      return replyFailure(interaction, 'This command only works in a server.');
+      return ticketFailure(interaction, 'This command only works in a server.');
     }
 
     await interaction.deferReply({ ephemeral: true });
@@ -141,13 +151,13 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'setup') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'You need the Manage Server permission to configure tickets.',
         );
       }
       if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'VREEO needs the Manage Channels permission to configure tickets.',
         );
@@ -155,11 +165,11 @@ export const ticketCommand: VreeoCommand = {
 
       const category = interaction.options.getChannel('category', true);
       if (category.type !== ChannelType.GuildCategory) {
-        return replyFailure(interaction, 'Choose a category from this server.');
+        return ticketFailure(interaction, 'Choose a category from this server.');
       }
       const staffRole = interaction.options.getRole('staff_role');
       if (staffRole && staffRole.id === guild.id) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'The @everyone role cannot be used as the ticket staff role.',
         );
@@ -213,7 +223,7 @@ export const ticketCommand: VreeoCommand = {
           'Ticket setup failed:',
           error instanceof Error ? error.message : 'Unknown error',
         );
-        await replyFailure(
+        await ticketFailure(
           interaction,
           'Ticket setup failed. Please check the bot permissions and try again.',
         );
@@ -223,19 +233,19 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'open') {
       if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'VREEO needs the Manage Channels permission to open tickets.',
         );
       }
       const subject = interaction.options.getString('subject', true).trim();
       if (subject.length < 3) {
-        return replyFailure(interaction, 'The ticket subject must contain at least 3 characters.');
+        return ticketFailure(interaction, 'The ticket subject must contain at least 3 characters.');
       }
 
       const settings = await loadTicketSettings(guildRecord.id);
       if (!settings.ticketCategoryId) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'Tickets are not configured yet. Ask a server administrator to run /ticket setup.',
         );
@@ -246,13 +256,13 @@ export const ticketCommand: VreeoCommand = {
         category.type !== ChannelType.GuildCategory ||
         category.guildId !== guild.id
       ) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.',
         );
       }
       if (settings.staffRoleId && !guild.roles.cache.has(settings.staffRoleId)) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'The configured ticket staff role no longer exists. Ask an administrator to run /ticket setup again.',
         );
@@ -410,7 +420,7 @@ export const ticketCommand: VreeoCommand = {
           'Ticket creation failed:',
           error instanceof Error ? error.message : 'Unknown error',
         );
-        await replyFailure(
+        await ticketFailure(
           interaction,
           'VREEO could not create the ticket. Check channel permissions and try again.',
         );
@@ -423,7 +433,7 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'list') {
       if (!isTicketStaff)
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'Only configured ticket staff or members with Manage Channels can list tickets.',
         );
@@ -476,11 +486,11 @@ export const ticketCommand: VreeoCommand = {
       },
     });
     if (!ticket || !ticket.channelDiscordId) {
-      return replyFailure(interaction, 'This command must be used inside a VREEO ticket channel.');
+      return ticketFailure(interaction, 'This command must be used inside a VREEO ticket channel.');
     }
     const channel = await guild.channels.fetch(ticket.channelDiscordId).catch(() => null);
     if (!channel || channel.type !== ChannelType.GuildText) {
-      return replyFailure(
+      return ticketFailure(
         interaction,
         'The ticket channel is missing or is not a text channel. An administrator may need to reconcile this ticket.',
       );
@@ -488,14 +498,14 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'claim') {
       if (!isTicketStaff)
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'Only configured ticket staff or members with Manage Channels can claim tickets.',
         );
       if (!['open', 'claimed'].includes(ticket.status))
-        return replyFailure(interaction, 'Only active tickets can be claimed.');
+        return ticketFailure(interaction, 'Only active tickets can be claimed.');
       if (ticket.claimedByDiscordUserId && ticket.claimedByDiscordUserId !== interaction.user.id) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           `This ticket is already claimed by <@${ticket.claimedByDiscordUserId}>.`,
         );
@@ -509,7 +519,7 @@ export const ticketCommand: VreeoCommand = {
         data: { status: 'claimed', claimedByDiscordUserId: interaction.user.id },
       });
       if (result.count !== 1)
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'Another staff member claimed this ticket first. Refresh and try again.',
         );
@@ -535,13 +545,13 @@ export const ticketCommand: VreeoCommand = {
     if (subcommand === 'close') {
       const isOpener = interaction.user.id === ticket.openerDiscordUserId;
       if (!isOpener && !isTicketStaff) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'Only the ticket opener or ticket staff can close this ticket.',
         );
       }
       if (!['open', 'claimed', 'closing'].includes(ticket.status)) {
-        return replyFailure(interaction, 'This ticket is already closed.');
+        return ticketFailure(interaction, 'This ticket is already closed.');
       }
 
       const reason =
@@ -559,7 +569,7 @@ export const ticketCommand: VreeoCommand = {
           data: { status: 'closing' },
         });
         if (transition.count !== 1) {
-          return replyFailure(
+          return ticketFailure(
             interaction,
             'Another ticket action is already in progress. Try again.',
           );
@@ -649,13 +659,13 @@ export const ticketCommand: VreeoCommand = {
     if (subcommand === 'reopen') {
       const isOpener = interaction.user.id === ticket.openerDiscordUserId;
       if (!isOpener && !isTicketStaff) {
-        return replyFailure(
+        return ticketFailure(
           interaction,
           'Only the ticket opener or ticket staff can reopen this ticket.',
         );
       }
       if (!['closed', 'reopening'].includes(ticket.status)) {
-        return replyFailure(interaction, 'Only closed tickets can be reopened.');
+        return ticketFailure(interaction, 'Only closed tickets can be reopened.');
       }
 
       if (ticket.status !== 'reopening') {
@@ -664,7 +674,7 @@ export const ticketCommand: VreeoCommand = {
           data: { status: 'reopening' },
         });
         if (transition.count !== 1) {
-          return replyFailure(
+          return ticketFailure(
             interaction,
             'Another ticket action is already in progress. Try again.',
           );

@@ -26,13 +26,13 @@ export function defaultQueueJobOptions(overrides: JobsOptions = {}): JobsOptions
     attempts: DEFAULT_JOB_ATTEMPTS,
     backoff: { type: "exponential", delay: DEFAULT_BACKOFF_DELAY_MS },
     removeOnComplete: 1_000,
-    removeOnFail: false,
+    removeOnFail: 1_000,
     ...overrides,
   };
 }
 
 function assertQueueName(name: string): void {
-  if (!/^[A-Za-z0-9_-]{1,100}$/.test(name)) {
+  if (!/^[A-Za-z0-9_-]{1,95}$/.test(name)) {
     throw new Error("Queue names may contain only letters, numbers, underscores, and hyphens");
   }
 }
@@ -66,7 +66,8 @@ export async function addIdempotentJob<TData>(
   idempotencyKey: string,
   options: JobsOptions = {},
 ) {
-  return queue.add(jobName, data, {
+  // BullMQ's typed-job-map overload narrows names from the payload type; this generic helper intentionally accepts arbitrary names.
+  return queue.add(jobName as never, data, {
     ...options,
     jobId: createIdempotentJobId(queue.name, idempotencyKey),
   });
@@ -80,7 +81,7 @@ export interface QueueWorkerHandle<TData = unknown, TResult = unknown> {
 
 export interface CreateQueueWorkerOptions {
   concurrency?: number;
-  logger?: Pick<Logger, "error">;
+  logger?: Pick<Logger, "error" | "warn">;
 }
 
 export function createQueueWorker<TData = unknown, TResult = unknown>(
@@ -90,7 +91,14 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
   options: CreateQueueWorkerOptions = {},
 ): QueueWorkerHandle<TData, TResult> {
   assertQueueName(queueName);
+  if (!Number.isSafeInteger(options.concurrency ?? 5) || (options.concurrency ?? 5) <= 0) {
+    throw new Error("Worker concurrency must be a positive integer");
+  }
+  if (queueName.length > 95) {
+    throw new Error("Queue names used by workers must be 95 characters or fewer");
+  }
   const logger = options.logger;
+  const pendingDeadLetterWrites = new Set<Promise<void>>();
   const deadLetterQueue = createQueue<DeadLetterJobData>(`${queueName}-dlq`, connection);
   const worker = new Worker<TData, TResult, string>(queueName, processor, {
     connection,
@@ -98,10 +106,17 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
     concurrency: options.concurrency ?? 5,
   });
 
+  worker.on("error", (error) => {
+    logger?.error({ err: error, queue: queueName }, "Queue worker emitted an error");
+  });
+
   worker.on("failed", (job, error) => {
     if (!job) return;
     const maxAttempts = job.opts.attempts ?? 1;
-    if (job.attemptsMade < maxAttempts) return;
+    if (job.attemptsMade < maxAttempts) {
+      logger?.warn({ queue: queueName, jobId: job.id, attemptsMade: job.attemptsMade, maxAttempts, errorName: error.name }, "Queue job failed; retry may follow");
+      return;
+    }
 
     const deadLetter: DeadLetterJobData = {
       originalQueue: queueName,
@@ -114,25 +129,33 @@ export function createQueueWorker<TData = unknown, TResult = unknown>(
     };
     const deadLetterJobId = `dlq-${createHash("sha256").update(deadLetter.payloadReference).digest("hex")}`;
 
-    void deadLetterQueue.add("dead-letter", deadLetter, { jobId: deadLetterJobId })
-      .then(() => logger?.error({
-        queue: queueName,
-        jobId: job.id,
-        attempts: job.attemptsMade,
-        errorName: deadLetter.errorName,
-      }, "Job moved to dead-letter queue"))
-      .catch((deadLetterError: unknown) => logger?.error({
-        err: deadLetterError,
-        queue: queueName,
-        jobId: job.id,
-      }, "Failed to enqueue dead-letter record"));
+    const pendingWrite = deadLetterQueue.add("dead-letter", deadLetter, { jobId: deadLetterJobId })
+      .then(() => {
+        logger?.error({
+          queue: queueName,
+          jobId: job.id,
+          attempts: job.attemptsMade,
+          errorName: deadLetter.errorName,
+        }, "Job moved to dead-letter queue");
+      })
+      .catch((deadLetterError: unknown) => {
+        logger?.error({
+          err: deadLetterError,
+          queue: queueName,
+          jobId: job.id,
+        }, "Failed to enqueue dead-letter record");
+      });
+    pendingDeadLetterWrites.add(pendingWrite);
+    void pendingWrite.finally(() => pendingDeadLetterWrites.delete(pendingWrite));
   });
 
   return {
     worker,
     deadLetterQueue,
     async close() {
-      await Promise.all([worker.close(), deadLetterQueue.close()]);
+      await worker.close();
+      await Promise.all([...pendingDeadLetterWrites]);
+      await deadLetterQueue.close();
     },
   };
 }

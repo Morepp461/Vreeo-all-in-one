@@ -14,13 +14,6 @@ export type TicketCreationResult = {
   existing: boolean;
 };
 
-export class TicketCreationInProgressError extends Error {
-  constructor() {
-    super('A ticket request with this interaction ID is already being processed.');
-    this.name = 'TicketCreationInProgressError';
-  }
-}
-
 function readObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return value as Record<string, unknown>;

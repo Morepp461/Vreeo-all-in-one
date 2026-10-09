@@ -274,6 +274,33 @@ export const ticketCommand: VreeoCommand = {
         );
       }
 
+      const ticketSettings = await loadTicketSettings(guildRecord.id);
+      if (!ticketSettings.enabled || !ticketSettings.ticketCategoryId) {
+        return ticketFailure(
+          interaction,
+          'Run /ticket setup before publishing a ticket panel.',
+        );
+      }
+      const ticketCategory = await guild.channels
+        .fetch(ticketSettings.ticketCategoryId)
+        .catch(() => null);
+      if (
+        !ticketCategory ||
+        ticketCategory.type !== ChannelType.GuildCategory ||
+        ticketCategory.guildId !== guild.id
+      ) {
+        return ticketFailure(
+          interaction,
+          'The configured ticket category no longer exists. Run /ticket setup again.',
+        );
+      }
+      if (ticketSettings.staffRoleId && !guild.roles.cache.has(ticketSettings.staffRoleId)) {
+        return ticketFailure(
+          interaction,
+          'The configured ticket staff role no longer exists. Run /ticket setup again.',
+        );
+      }
+
       let panelId: string | null = null;
       let messageId: string | null = null;
       try {

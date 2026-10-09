@@ -1,0 +1,872 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String         @id @default(uuid()) @db.Uuid
+  discordUserId  String         @unique @map("discord_user_id") @db.VarChar(32)
+  username       String         @db.VarChar(100)
+  displayName    String         @map("display_name") @db.VarChar(100)
+  avatarUrl      String         @map("avatar_url") @db.Text
+  locale         String         @db.VarChar(10)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLoginAt    DateTime?      @map("last_login_at") @db.Timestamptz(6)
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  oauthAccounts  OAuthAccount[]
+  sessions       Session[]
+  guildMembers   GuildMember[]
+  auditLogs      AuditLog[]
+
+  @@index([lastLoginAt])
+  @@map("users")
+}
+
+model OAuthAccount {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  provider          String   @db.VarChar(50)
+  providerAccountId String   @map("provider_account_id") @db.VarChar(128)
+  scopes            Json     @db.JsonB
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
+}
+
+model Session {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  sessionHash String  @map("session_hash") @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastSeenAt DateTime  @map("last_seen_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("sessions")
+}
+
+model Guild {
+  id                 String              @id @default(uuid()) @db.Uuid
+  discordGuildId     String              @unique @map("discord_guild_id") @db.VarChar(32)
+  name               String              @db.VarChar(200)
+  iconUrl            String              @map("icon_url") @db.Text
+  ownerDiscordUserId String              @map("owner_discord_user_id") @db.VarChar(32)
+  active             Boolean
+  botJoinedAt        DateTime?           @map("bot_joined_at") @db.Timestamptz(6)
+  lastSeenAt         DateTime?           @map("last_seen_at") @db.Timestamptz(6)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  settings           GuildSetting?
+  features           GuildFeature[]
+  members            GuildMember[]
+  memberRoles        GuildMemberRole[]
+  roles              GuildRole[]
+  channels           GuildChannel[]
+  permissionRoles    PermissionRole[]
+  permissionOverrides PermissionOverride[]
+  moderationCases    ModerationCase[]
+  warnings           Warning[]
+  appeals            Appeal[]
+  auditLogs          AuditLog[]
+  automodRules       AutoModRule[]
+  automodEvents      AutoModEvent[]
+  securityEvents     SecurityEvent[]
+  trustedEntities    TrustedEntity[]
+  lockdowns          Lockdown[]
+  verificationConfig VerificationConfig?
+  verificationAttempts VerificationAttempt[]
+  welcomeConfig      WelcomeConfig?
+  goodbyeConfig      GoodbyeConfig?
+  logConfigs         LogConfig[]
+  logEvents          LogEvent[]
+  levelConfig        LevelConfig?
+  memberLevels       MemberLevel[]
+  ticketPanels       TicketPanel[]
+  ticketCategories   TicketCategory[]
+  tickets            Ticket[]
+  forms              Form[]
+  formSubmissions    FormSubmission[]
+  roleMenus           RoleMenu[]
+  subscriptions      Subscription[]
+  entitlements       Entitlement[]
+  payments           Payment[]
+
+  @@index([active])
+  @@index([ownerDiscordUserId])
+  @@map("guilds")
+}
+
+model GuildSetting {
+  id                    String   @id @default(uuid()) @db.Uuid
+  guildId               String   @unique @map("guild_id") @db.Uuid
+  locale                String   @db.VarChar(10)
+  timezone              String   @db.VarChar(64)
+  prefix                String?  @db.VarChar(20)
+  defaultLogChannelId   String?  @map("default_log_channel_id") @db.VarChar(32)
+  defaultStaffRoleId    String?  @map("default_staff_role_id") @db.VarChar(32)
+  config                Json     @db.JsonB
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                 Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("guild_settings")
+}
+
+model GuildFeature {
+  id        String   @id @default(uuid()) @db.Uuid
+  guildId   String   @map("guild_id") @db.Uuid
+  featureKey String  @map("feature_key") @db.VarChar(100)
+  enabled   Boolean
+  config    Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, featureKey])
+  @@index([guildId, enabled])
+  @@map("guild_features")
+}
+
+model GuildMember {
+  id            String           @id @default(uuid()) @db.Uuid
+  guildId       String           @map("guild_id") @db.Uuid
+  userId        String?          @map("user_id") @db.Uuid
+  discordUserId String           @map("discord_user_id") @db.VarChar(32)
+  nickname      String?          @db.VarChar(100)
+  joinedAt      DateTime         @map("joined_at") @db.Timestamptz(6)
+  leftAt        DateTime?        @map("left_at") @db.Timestamptz(6)
+  isMember      Boolean          @map("is_member")
+  isVerified    Boolean          @map("is_verified")
+  metadata      Json             @db.JsonB
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild         Guild            @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user          User?            @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  roles         GuildMemberRole[]
+
+  @@unique([guildId, discordUserId])
+  @@index([guildId, isMember])
+  @@index([userId])
+  @@map("guild_members")
+}
+
+model GuildMemberRole {
+  id             String      @id @default(uuid()) @db.Uuid
+  guildId        String      @map("guild_id") @db.Uuid
+  memberId       String      @map("member_id") @db.Uuid
+  discordRoleId  String      @map("discord_role_id") @db.VarChar(32)
+  assignedAt     DateTime    @map("assigned_at") @db.Timestamptz(6)
+  removedAt      DateTime?   @map("removed_at") @db.Timestamptz(6)
+  guild          Guild       @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  member         GuildMember @relation(fields: [memberId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([memberId, discordRoleId])
+  @@index([guildId, removedAt])
+  @@map("guild_member_roles")
+}
+
+model GuildRole {
+  id            String   @id @default(uuid()) @db.Uuid
+  guildId       String   @map("guild_id") @db.Uuid
+  discordRoleId String   @map("discord_role_id") @db.VarChar(32)
+  name          String   @db.VarChar(100)
+  position      Int
+  managed       Boolean
+  permissions   String   @db.Text
+  color         Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild         Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, discordRoleId])
+  @@index([guildId, position])
+  @@map("guild_roles")
+}
+
+model GuildChannel {
+  id                      String   @id @default(uuid()) @db.Uuid
+  guildId                 String   @map("guild_id") @db.Uuid
+  discordChannelId        String   @map("discord_channel_id") @db.VarChar(32)
+  parentDiscordChannelId  String?  @map("parent_discord_channel_id") @db.VarChar(32)
+  name                    String   @db.VarChar(100)
+  type                    String   @db.VarChar(50)
+  position                Int
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                   Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, discordChannelId])
+  @@index([guildId, type])
+  @@map("guild_channels")
+}
+
+model PermissionRole {
+  id           String   @id @default(uuid()) @db.Uuid
+  guildId      String   @map("guild_id") @db.Uuid
+  discordRoleId String  @map("discord_role_id") @db.VarChar(32)
+  permissionSet Json    @map("permission_set") @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild        Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, discordRoleId])
+  @@map("permission_roles")
+}
+
+model PermissionOverride {
+  id                String   @id @default(uuid()) @db.Uuid
+  guildId           String   @map("guild_id") @db.Uuid
+  subjectType       String   @map("subject_type") @db.VarChar(30)
+  subjectDiscordId  String   @map("subject_discord_id") @db.VarChar(32)
+  permissionKey     String   @map("permission_key") @db.VarChar(150)
+  effect            String   @db.VarChar(10)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild             Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, permissionKey])
+  @@map("permission_overrides")
+}
+
+model ModerationCase {
+  id                    String           @id @default(uuid()) @db.Uuid
+  guildId               String           @map("guild_id") @db.Uuid
+  caseNumber            BigInt           @map("case_number")
+  targetDiscordUserId   String           @map("target_discord_user_id") @db.VarChar(32)
+  moderatorDiscordUserId String          @map("moderator_discord_user_id") @db.VarChar(32)
+  action                String           @db.VarChar(50)
+  reason                String           @db.Text
+  evidence              Json             @db.JsonB
+  durationSeconds       BigInt?          @map("duration_seconds")
+  status                String           @db.VarChar(30)
+  relatedCaseId         String?          @map("related_case_id") @db.Uuid
+  expiresAt             DateTime?        @map("expires_at") @db.Timestamptz(6)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                 Guild            @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  relatedCase           ModerationCase?  @relation("RelatedCases", fields: [relatedCaseId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  relatedCases          ModerationCase[] @relation("RelatedCases")
+  warnings              Warning[]
+  appeals               Appeal[]
+
+  @@unique([guildId, caseNumber])
+  @@index([targetDiscordUserId])
+  @@index([moderatorDiscordUserId])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+  @@index([expiresAt])
+  @@map("moderation_cases")
+}
+
+model Warning {
+  id                  String          @id @default(uuid()) @db.Uuid
+  guildId             String          @map("guild_id") @db.Uuid
+  targetDiscordUserId String          @map("target_discord_user_id") @db.VarChar(32)
+  moderatorDiscordUserId String       @map("moderator_discord_user_id") @db.VarChar(32)
+  reason              String          @db.Text
+  caseId              String?         @map("case_id") @db.Uuid
+  expiresAt           DateTime?       @map("expires_at") @db.Timestamptz(6)
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild               Guild           @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  case                ModerationCase? @relation(fields: [caseId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([guildId, targetDiscordUserId, createdAt])
+  @@index([expiresAt])
+  @@map("warnings")
+}
+
+model Appeal {
+  id                    String         @id @default(uuid()) @db.Uuid
+  guildId               String         @map("guild_id") @db.Uuid
+  caseId                String         @map("case_id") @db.Uuid
+  appellantDiscordUserId String        @map("appellant_discord_user_id") @db.VarChar(32)
+  status                String         @db.VarChar(30)
+  reason                String         @db.Text
+  evidence              Json           @db.JsonB
+  decision              String?        @db.Text
+  reviewerDiscordUserId String?        @map("reviewer_discord_user_id") @db.VarChar(32)
+  submittedAt           DateTime       @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt            DateTime?      @map("reviewed_at") @db.Timestamptz(6)
+  createdAt             DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                 Guild          @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  case                  ModerationCase @relation(fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, status, submittedAt])
+  @@index([caseId])
+  @@map("appeals")
+}
+
+model Plan {
+  id          String       @id @default(uuid()) @db.Uuid
+  key         String       @unique @db.VarChar(50)
+  name        String       @db.VarChar(100)
+  description String       @db.Text
+  active      Boolean
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  features    PlanFeature[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model PlanFeature {
+  id         String   @id @default(uuid()) @db.Uuid
+  planId     String   @map("plan_id") @db.Uuid
+  featureKey String   @map("feature_key") @db.VarChar(150)
+  enabled    Boolean
+  limitValue BigInt?  @map("limit_value")
+  limitUnit  String?  @map("limit_unit") @db.VarChar(50)
+  config     Json     @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  plan       Plan     @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([planId, featureKey])
+  @@map("plan_features")
+}
+
+model FeatureFlag {
+  id        String               @id @default(uuid()) @db.Uuid
+  key       String               @unique @db.VarChar(150)
+  state     String               @db.VarChar(20)
+  config    Json                 @db.JsonB
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  overrides FeatureFlagOverride[]
+
+  @@map("feature_flags")
+}
+
+model FeatureFlagOverride {
+  id            String     @id @default(uuid()) @db.Uuid
+  featureFlagId String     @map("feature_flag_id") @db.Uuid
+  scopeType     String     @map("scope_type") @db.VarChar(30)
+  scopeId       String     @map("scope_id") @db.VarChar(100)
+  state         String     @db.VarChar(20)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  featureFlag   FeatureFlag @relation(fields: [featureFlagId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([featureFlagId, scopeType, scopeId])
+  @@map("feature_flag_overrides")
+}
+
+model AuditLog {
+  id                   String   @id @default(uuid()) @db.Uuid
+  guildId              String?  @map("guild_id") @db.Uuid
+  actorUserId          String?  @map("actor_user_id") @db.Uuid
+  actorDiscordUserId   String?  @map("actor_discord_user_id") @db.VarChar(32)
+  action               String   @db.VarChar(150)
+  resourceType         String   @map("resource_type") @db.VarChar(100)
+  resourceId           String?  @map("resource_id") @db.VarChar(100)
+  oldValue             Json?    @map("old_value") @db.JsonB
+  newValue             Json?    @map("new_value") @db.JsonB
+  source               String   @db.VarChar(50)
+  correlationId        String?  @map("correlation_id") @db.VarChar(100)
+  ipHash               String?  @map("ip_hash") @db.VarChar(128)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  guild                Guild?   @relation(fields: [guildId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  actorUser            User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([guildId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
+}
+
+model IdempotencyKey {
+  id             String   @id @default(uuid()) @db.Uuid
+  scope          String   @db.VarChar(100)
+  keyHash        String   @map("key_hash") @db.VarChar(128)
+  requestHash    String   @map("request_hash") @db.VarChar(128)
+  responseStatus Int?     @map("response_status")
+  responseBody   Json?    @map("response_body") @db.JsonB
+  expiresAt      DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([scope, keyHash])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
+
+model AutoModRule {
+  id         String        @id @default(uuid()) @db.Uuid
+  guildId    String        @map("guild_id") @db.Uuid
+  name       String        @db.VarChar(100)
+  type       String        @db.VarChar(50)
+  enabled    Boolean
+  priority   Int
+  conditions Json          @db.JsonB
+  exemptions Json          @db.JsonB
+  threshold  Json          @db.JsonB
+  actions    Json          @db.JsonB
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild      Guild         @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  events     AutoModEvent[]
+
+  @@index([guildId, enabled, priority])
+  @@map("automod_rules")
+}
+
+model AutoModEvent {
+  id          String       @id @default(uuid()) @db.Uuid
+  guildId     String       @map("guild_id") @db.Uuid
+  ruleId      String?      @map("rule_id") @db.Uuid
+  discordUserId String     @map("discord_user_id") @db.VarChar(32)
+  channelId   String?      @map("channel_id") @db.VarChar(32)
+  messageId   String?      @map("message_id") @db.VarChar(32)
+  action      String       @db.VarChar(50)
+  metadata    Json         @db.JsonB
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  guild       Guild        @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  rule        AutoModRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([guildId, createdAt])
+  @@index([discordUserId, createdAt])
+  @@index([ruleId, createdAt])
+  @@map("automod_events")
+}
+
+model SecurityEvent {
+  id                       String   @id @default(uuid()) @db.Uuid
+  guildId                  String   @map("guild_id") @db.Uuid
+  eventType                String   @map("event_type") @db.VarChar(100)
+  severity                 String   @db.VarChar(20)
+  actorDiscordUserId       String?  @map("actor_discord_user_id") @db.VarChar(32)
+  targetDiscordId          String?  @map("target_discord_id") @db.VarChar(32)
+  metadata                 Json     @db.JsonB
+  resolved                 Boolean
+  resolvedByDiscordUserId  String?  @map("resolved_by_discord_user_id") @db.VarChar(32)
+  resolvedAt               DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  guild                    Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, createdAt])
+  @@index([guildId, severity, resolved])
+  @@map("security_events")
+}
+
+model TrustedEntity {
+  id         String   @id @default(uuid()) @db.Uuid
+  guildId    String   @map("guild_id") @db.Uuid
+  entityType String   @map("entity_type") @db.VarChar(30)
+  discordId  String   @map("discord_id") @db.VarChar(32)
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild      Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, entityType, discordId])
+  @@map("trusted_entities")
+}
+
+model Lockdown {
+  id                    String    @id @default(uuid()) @db.Uuid
+  guildId               String    @map("guild_id") @db.Uuid
+  scopeType             String    @map("scope_type") @db.VarChar(30)
+  scopeId               String?   @map("scope_id") @db.VarChar(32)
+  reason                String    @db.Text
+  triggerType            String    @map("trigger_type") @db.VarChar(30)
+  startedAt             DateTime  @map("started_at") @db.Timestamptz(6)
+  expiresAt             DateTime? @map("expires_at") @db.Timestamptz(6)
+  endedAt               DateTime? @map("ended_at") @db.Timestamptz(6)
+  startedByDiscordUserId String?  @map("started_by_discord_user_id") @db.VarChar(32)
+  endedByDiscordUserId   String?  @map("ended_by_discord_user_id") @db.VarChar(32)
+  guild                 Guild     @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, startedAt])
+  @@index([expiresAt])
+  @@map("lockdowns")
+}
+
+model VerificationConfig {
+  id                     String   @id @default(uuid()) @db.Uuid
+  guildId                String   @unique @map("guild_id") @db.Uuid
+  method                 String   @db.VarChar(50)
+  enabled                Boolean
+  verificationChannelId  String?  @map("verification_channel_id") @db.VarChar(32)
+  verifiedRoleId         String?  @map("verified_role_id") @db.VarChar(32)
+  unverifiedRoleId       String?  @map("unverified_role_id") @db.VarChar(32)
+  accountAgeDays         Int?     @map("account_age_days")
+  config                 Json     @db.JsonB
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                  Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("verification_configs")
+}
+
+model VerificationAttempt {
+  id          String    @id @default(uuid()) @db.Uuid
+  guildId     String    @map("guild_id") @db.Uuid
+  discordUserId String  @map("discord_user_id") @db.VarChar(32)
+  status      String    @db.VarChar(30)
+  method      String    @db.VarChar(50)
+  metadata    Json      @db.JsonB
+  attemptedAt DateTime  @map("attempted_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  guild       Guild     @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, discordUserId, attemptedAt])
+  @@map("verification_attempts")
+}
+
+model WelcomeConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  guildId         String   @unique @map("guild_id") @db.Uuid
+  enabled         Boolean
+  channelId       String?  @map("channel_id") @db.VarChar(32)
+  messageTemplate String?  @map("message_template") @db.Text
+  embedConfig     Json     @map("embed_config") @db.JsonB
+  imageConfig     Json     @map("image_config") @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild           Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("welcome_configs")
+}
+
+model GoodbyeConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  guildId         String   @unique @map("guild_id") @db.Uuid
+  enabled         Boolean
+  channelId       String?  @map("channel_id") @db.VarChar(32)
+  messageTemplate String?  @map("message_template") @db.Text
+  embedConfig     Json     @map("embed_config") @db.JsonB
+  imageConfig     Json     @map("image_config") @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild           Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("goodbye_configs")
+}
+
+model LogConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  guildId   String   @map("guild_id") @db.Uuid
+  eventType String   @map("event_type") @db.VarChar(100)
+  channelId String   @map("channel_id") @db.VarChar(32)
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, eventType])
+  @@map("log_configs")
+}
+
+model LogEvent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  guildId             String   @map("guild_id") @db.Uuid
+  eventType           String   @map("event_type") @db.VarChar(100)
+  actorDiscordUserId  String?  @map("actor_discord_user_id") @db.VarChar(32)
+  targetDiscordId     String?  @map("target_discord_id") @db.VarChar(32)
+  channelId           String?  @map("channel_id") @db.VarChar(32)
+  messageId           String?  @map("message_id") @db.VarChar(32)
+  payload             Json     @db.JsonB
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  guild               Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, createdAt])
+  @@map("log_events")
+}
+
+model LevelConfig {
+  id               String   @id @default(uuid()) @db.Uuid
+  guildId          String   @unique @map("guild_id") @db.Uuid
+  enabled          Boolean
+  xpPerMessage     Int      @map("xp_per_message")
+  cooldownSeconds  Int      @map("cooldown_seconds")
+  multiplier       Decimal  @db.Decimal(8, 3)
+  ignoredChannels  Json     @map("ignored_channels") @db.JsonB
+  ignoredRoles     Json     @map("ignored_roles") @db.JsonB
+  levelFormula     String   @map("level_formula") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild            Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@map("level_configs")
+}
+
+model MemberLevel {
+  id            String    @id @default(uuid()) @db.Uuid
+  guildId       String    @map("guild_id") @db.Uuid
+  discordUserId String    @map("discord_user_id") @db.VarChar(32)
+  xp            BigInt
+  level         Int
+  messagesCount BigInt    @map("messages_count")
+  lastXpAt      DateTime? @map("last_xp_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild         Guild     @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([guildId, discordUserId])
+  @@index([guildId, xp])
+  @@map("member_levels")
+}
+
+model Form {
+  id              String           @id @default(uuid()) @db.Uuid
+  guildId         String           @map("guild_id") @db.Uuid
+  name            String           @db.VarChar(100)
+  description     String           @db.Text
+  status          String           @db.VarChar(30)
+  version         Int
+  config          Json             @db.JsonB
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild           Guild            @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fields          FormField[]
+  submissions     FormSubmission[]
+  ticketCategories TicketCategory[]
+
+  @@index([guildId, status])
+  @@map("forms")
+}
+
+model FormField {
+  id        String   @id @default(uuid()) @db.Uuid
+  formId    String   @map("form_id") @db.Uuid
+  fieldKey  String   @map("field_key") @db.VarChar(100)
+  label     String   @db.VarChar(200)
+  type      String   @db.VarChar(50)
+  required  Boolean
+  position  Int
+  config    Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([formId, fieldKey])
+  @@index([formId, position])
+  @@map("form_fields")
+}
+
+model FormSubmission {
+  id                      String    @id @default(uuid()) @db.Uuid
+  guildId                 String    @map("guild_id") @db.Uuid
+  formId                  String    @map("form_id") @db.Uuid
+  submittedByDiscordUserId String   @map("submitted_by_discord_user_id") @db.VarChar(32)
+  status                  String    @db.VarChar(30)
+  answers                 Json      @db.JsonB
+  reviewedByDiscordUserId String?   @map("reviewed_by_discord_user_id") @db.VarChar(32)
+  reviewedAt              DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                   Guild     @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  form                    Form      @relation(fields: [formId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, formId, status, createdAt])
+  @@map("form_submissions")
+}
+
+model TicketPanel {
+  id        String   @id @default(uuid()) @db.Uuid
+  guildId   String   @map("guild_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  channelId String   @map("channel_id") @db.VarChar(32)
+  messageId String?  @map("message_id") @db.VarChar(32)
+  config    Json     @db.JsonB
+  enabled   Boolean
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, enabled])
+  @@map("ticket_panels")
+}
+
+model TicketCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  guildId   String   @map("guild_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  staffRoles Json    @map("staff_roles") @db.JsonB
+  priority  Int
+  formId    String?  @map("form_id") @db.Uuid
+  config    Json     @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  form      Form?    @relation(fields: [formId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  tickets   Ticket[]
+
+  @@index([guildId, priority])
+  @@map("ticket_categories")
+}
+
+model Ticket {
+  id                    String            @id @default(uuid()) @db.Uuid
+  guildId               String            @map("guild_id") @db.Uuid
+  ticketNumber          BigInt            @map("ticket_number")
+  creatorDiscordUserId  String            @map("creator_discord_user_id") @db.VarChar(32)
+  channelId             String            @map("channel_id") @db.VarChar(32)
+  categoryId            String?           @map("category_id") @db.Uuid
+  status                String            @db.VarChar(30)
+  priority              String            @db.VarChar(20)
+  claimedByDiscordUserId String?           @map("claimed_by_discord_user_id") @db.VarChar(32)
+  closedByDiscordUserId String?           @map("closed_by_discord_user_id") @db.VarChar(32)
+  openedAt              DateTime          @map("opened_at") @db.Timestamptz(6)
+  closedAt              DateTime?         @map("closed_at") @db.Timestamptz(6)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                 Guild             @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category              TicketCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  participants          TicketParticipant[]
+  notes                 TicketNote[]
+  transcripts            TicketTranscript[]
+
+  @@unique([guildId, ticketNumber])
+  @@index([guildId, status, openedAt])
+  @@index([creatorDiscordUserId])
+  @@map("tickets")
+}
+
+model TicketParticipant {
+  id                String   @id @default(uuid()) @db.Uuid
+  ticketId          String   @map("ticket_id") @db.Uuid
+  discordUserId     String   @map("discord_user_id") @db.VarChar(32)
+  participantType   String   @map("participant_type") @db.VarChar(30)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket            Ticket   @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([ticketId, discordUserId])
+  @@map("ticket_participants")
+}
+
+model TicketNote {
+  id                   String   @id @default(uuid()) @db.Uuid
+  ticketId             String   @map("ticket_id") @db.Uuid
+  authorDiscordUserId  String   @map("author_discord_user_id") @db.VarChar(32)
+  content              String   @db.Text
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket               Ticket   @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_notes")
+}
+
+model TicketTranscript {
+  id               String   @id @default(uuid()) @db.Uuid
+  ticketId         String   @map("ticket_id") @db.Uuid
+  storageType      String   @map("storage_type") @db.VarChar(30)
+  storageReference String   @map("storage_reference") @db.Text
+  messageCount     Int      @map("message_count")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  ticket           Ticket   @relation(fields: [ticketId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_transcripts")
+}
+
+model RoleMenu {
+  id        String           @id @default(uuid()) @db.Uuid
+  guildId   String           @map("guild_id") @db.Uuid
+  name      String           @db.VarChar(100)
+  channelId String           @map("channel_id") @db.VarChar(32)
+  messageId String?          @map("message_id") @db.VarChar(32)
+  type      String           @db.VarChar(30)
+  config    Json             @db.JsonB
+  enabled   Boolean
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild     Guild            @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  options   RoleMenuOption[]
+
+  @@index([guildId, enabled])
+  @@map("role_menus")
+}
+
+model RoleMenuOption {
+  id          String   @id @default(uuid()) @db.Uuid
+  roleMenuId  String   @map("role_menu_id") @db.Uuid
+  value       String   @db.VarChar(100)
+  label       String   @db.VarChar(100)
+  description String?  @db.Text
+  emoji       String?  @db.VarChar(100)
+  roleId      String   @map("role_id") @db.VarChar(32)
+  position    Int
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  roleMenu    RoleMenu @relation(fields: [roleMenuId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([roleMenuId, position])
+  @@map("role_menu_options")
+}
+
+model Subscription {
+  id                      String    @id @default(uuid()) @db.Uuid
+  guildId                 String    @map("guild_id") @db.Uuid
+  planId                  String    @map("plan_id") @db.Uuid
+  provider                String    @db.VarChar(50)
+  providerSubscriptionId  String?   @map("provider_subscription_id") @db.VarChar(255)
+  status                  String    @db.VarChar(30)
+  currentPeriodStart      DateTime  @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd        DateTime  @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd       Boolean   @map("cancel_at_period_end")
+  graceUntil              DateTime? @map("grace_until") @db.Timestamptz(6)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild                   Guild     @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  plan                    Plan      @relation(fields: [planId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  payments                Payment[]
+
+  @@index([guildId, status])
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model Entitlement {
+  id         String    @id @default(uuid()) @db.Uuid
+  guildId    String    @map("guild_id") @db.Uuid
+  featureKey String    @map("feature_key") @db.VarChar(150)
+  sourceType String    @map("source_type") @db.VarChar(30)
+  sourceId   String?   @map("source_id") @db.Uuid
+  enabled    Boolean
+  limitValue BigInt?   @map("limit_value")
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+  metadata   Json      @db.JsonB
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild      Guild     @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([guildId, featureKey])
+  @@index([expiresAt])
+  @@map("entitlements")
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  guildId           String        @map("guild_id") @db.Uuid
+  subscriptionId    String?       @map("subscription_id") @db.Uuid
+  provider           String        @db.VarChar(50)
+  providerPaymentId String        @map("provider_payment_id") @db.VarChar(255)
+  amountMinor       BigInt        @map("amount_minor")
+  currency          String        @db.VarChar(10)
+  status            String        @db.VarChar(30)
+  paidAt            DateTime?     @map("paid_at") @db.Timestamptz(6)
+  metadata          Json          @db.JsonB
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild             Guild         @relation(fields: [guildId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([provider, providerPaymentId])
+  @@index([guildId, status, createdAt])
+  @@map("payments")
+}

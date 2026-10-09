@@ -20,6 +20,8 @@ describe('slash command registry', () => {
       'timeout',
       'kick',
       'ban',
+      'case',
+      'warnings',
     ]);
   });
 

@@ -32,7 +32,9 @@ class MemoryAuthRepository implements AuthRepository {
   session: AuthSessionRecord | null = null;
   storedHash = "";
   revoked = false;
+  accessibleGuilds: Array<{ id: string; name: string; iconUrl: string }> = [];
   async completeLogin(input: CompleteLoginInput) {
+    this.accessibleGuilds = input.manageableGuilds.map((guild) => ({ id: guild.id, name: guild.name, iconUrl: guild.icon ? "https://cdn.discordapp.com/icons/" + guild.id + "/" + guild.icon + ".png" : "" }));
     this.storedHash = input.sessionHash;
     this.session = {
       id: "11111111-1111-4111-8111-111111111111", userId: this.user.id,
@@ -57,6 +59,7 @@ class MemoryAuthRepository implements AuthRepository {
   async listSessions(_userId: string, _limit: number): Promise<AuthSessionRecord[]> {
     return this.session ? [this.session] : [];
   }
+  async listAccessibleGuilds(_userId: string) { return this.accessibleGuilds; }
   async revokeSession(userId: string, sessionId: string, at: Date): Promise<boolean> {
     if (userId !== this.user.id || this.session?.id !== sessionId || this.revoked) return false;
     this.revoked = true;
@@ -76,6 +79,14 @@ function setup() {
     fetchIdentity: async (token) => {
       if (token !== "temporary-token") throw new Error("provider error");
       return { id: "123456789012345678", username: "example", global_name: "Example", locale: "en" };
+    },
+    fetchGuilds: async (token) => {
+      if (token !== "temporary-token") throw new Error("provider error");
+      return [
+        { id: "111111111111111111", name: "Owner Guild", icon: "abc", owner: true, permissions: "0" },
+        { id: "222222222222222222", name: "No Access", icon: null, owner: false, permissions: "0" },
+        { id: "333333333333333333", name: "Moderator Guild", icon: null, owner: false, permissions: "32" },
+      ];
     },
   };
   return { stateStore, repository, provider, auth: { config, stateStore, repository, provider } };
@@ -171,6 +182,23 @@ describe("OAuth and session routes", () => {
     expect(logout.statusCode).toBe(204);
     expect(deps.repository.revoked).toBe(true);
     expect(logout.headers["set-cookie"]?.toString()).toContain("Max-Age=0");
+  });
+
+  it("returns only guilds authorized by the current session", async () => {
+    const deps = setup();
+    app = await buildServer({ loggerOptions: { level: "silent" }, auth: deps.auth });
+    const start = await app.inject({ method: "GET", url: "/api/v1/auth/discord" });
+    const state = new URL(start.headers.location as string).searchParams.get("state") ?? "";
+    const stateCookie = cookiePair(start.headers["set-cookie"], "vreeo_oauth_state");
+    const callback = await app.inject({ method: "GET", url: "/api/v1/auth/discord/callback?code=valid-code&state=" + state, headers: { cookie: stateCookie } });
+    const sessionCookie = cookiePair(callback.headers["set-cookie"], "vreeo_session");
+    const guilds = await app.inject({ method: "GET", url: "/api/v1/auth/guilds", headers: { cookie: sessionCookie } });
+    expect(guilds.statusCode).toBe(200);
+    expect(guilds.json().data).toEqual([
+      { id: "111111111111111111", name: "Owner Guild", iconUrl: "https://cdn.discordapp.com/icons/111111111111111111/abc.png" },
+      { id: "333333333333333333", name: "Moderator Guild", iconUrl: "" },
+    ]);
+    expect((await app.inject({ method: "GET", url: "/api/v1/auth/guilds" })).statusCode).toBe(401);
   });
 
   it("does not reveal session hashes in the session list", async () => {

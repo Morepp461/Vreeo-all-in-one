@@ -21,6 +21,9 @@
     "pino": "^9.7.0",
     "@vreeo/database": "workspace:*",
     "@vreeo/queue": "workspace:*",
-    "@fastify/cookie": "^11.0.2"
+    "@fastify/cookie": "^11.0.2",
+    "@vreeo/entitlements": "workspace:*",
+    "@vreeo/permissions": "workspace:*",
+    "@vreeo/types": "workspace:*"
   }
 }

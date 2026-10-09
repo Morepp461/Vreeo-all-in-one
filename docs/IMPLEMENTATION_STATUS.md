@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Current stage: live guild discovery and authentication foundation
+## Current stage: authentication, guild discovery, and bot guild sync
 
 This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
 
@@ -20,11 +20,11 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Database-backed permission/profile and entitlement policy loaders.
 - Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
 - OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
-- Bot gateway synchronizes active guild metadata into `guilds` at startup and on guild create/update/delete. This does not synchronize member/role state or replace live authorization checks.
+- Bot gateway synchronizes active guild metadata into `guilds` at startup and on guild create/update/delete. Startup sync is concurrency-bounded; temporary guild-unavailability events do not deactivate a guild. This does not synchronize member/role state or replace live authorization checks.
 
 ### Verification
 
-Infrastructure and shared package gates previously passed. The guild-access branch passed GitHub Actions on `2579caec2d4d8590b81f73c5251c915c6a360849`. The live-guild-discovery branch adds a versioned migration and tests for OAuth guild-response validation; its latest CI run is in progress. No real Discord OAuth credentials are configured, so external OAuth behavior has not been exercised. Live Discord OAuth has not been exercised because no real client credentials are configured.
+Infrastructure and shared package gates previously passed. The guild-access branch passed GitHub Actions on `2579caec2d4d8590b81f73c5251c915c6a360849`. The live-guild-discovery branch passed CI after correcting guild ID/permission-bitfield validation. The bot guild-sync branch passed GitHub Actions on `df54c1a49b8ed84d4f33b16a86e191df95940275`, including Prisma migration/schema drift, build, typecheck, and tests. No real Discord OAuth credentials are configured, so external OAuth behavior has not been exercised. Live Discord OAuth has not been exercised because no real client credentials are configured.
 
 ### Next sequence
 

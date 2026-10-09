@@ -20,7 +20,7 @@ This is a stacked feature branch based on `feat/bot-command-core`. It is not a p
 ### Important limits
 
 - The warning service is **not yet wired to an API endpoint, Discord `/moderation warn` command, or dashboard**. It is a persistence/domain layer only; callers must complete authorization before invoking it.
-- Guild permissions are a login-time OAuth snapshot. Since OAuth tokens are not persisted in the current schema, permission changes made in Discord after login are not revalidated yet. Do not use this snapshot alone for production-sensitive mutations.
+- A reusable live Discord permission snapshot helper now fetches the current guild, actor membership, and role bitfields through the shared REST abstraction; it fails closed on malformed responses and does not persist OAuth tokens. It is not yet wired into protected mutations. Action-specific Discord permission mappings remain intentionally undefined until the source policy resolves them; do not use the login-time OAuth snapshot alone for production-sensitive mutations.
 - The source specs define conceptual default role profiles but not a complete permission matrix. The policy loader therefore requires the caller to supply default permissions; no profile mapping is invented here.
 - Entitlement source precedence must be explicit, and grace access is policy-defined. Those policies are not silently hardcoded. The baseline plan seed currently creates plans but does not yet assign a Free plan entitlement to every guild.
 - Real Discord OAuth and slash-command registration have not been exercised with production credentials.
@@ -31,7 +31,7 @@ GitHub Actions passed on commit `209d45a5adbac3ddc397b59327f5166a6815be84`, incl
 
 ### Next sequence
 
-1. Define the live guild/Discord permission revalidation strategy without storing OAuth tokens contrary to the current source design.
+1. Wire the live Discord permission snapshot helper into authorization services and add an explicit action-to-Discord-permission policy once the source specification is resolved.
 2. Define explicit entitlement precedence and Free-plan provisioning from the source specifications; keep unspecified policy fail-closed.
 3. Wire the warning service to the bot and API only after VREEO permission, Discord permission, entitlement, target/hierarchy, and tenant checks are enforceable.
 4. Build the dashboard moderation history and warning flow, then continue through the remaining MVP backlog.

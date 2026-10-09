@@ -86,3 +86,108 @@ export function assertDiscordPermissions(requiredPermissions: readonly string[],
   const granted = new Set(grantedPermissions);
   if (requiredPermissions.some((permission) => !granted.has(permission))) throw new DiscordServiceError("DISCORD_PERMISSION_MISSING", "The bot lacks a required Discord permission.");
 }
+
+
+export interface LiveDiscordPermissionSnapshot {
+  guildId: string;
+  actorDiscordUserId: string;
+  guildOwnerDiscordUserId: string;
+  roleIds: readonly string[];
+  /** Decimal Discord permission bitfield computed from the live member roles. */
+  permissionBits: bigint;
+  isGuildOwner: boolean;
+  isAdministrator: boolean;
+}
+
+interface LiveDiscordGuildPayload { id: string; owner_id: string; }
+interface LiveDiscordRolePayload { id: string; permissions: string; }
+interface LiveDiscordMemberPayload { user: { id: string }; roles: string[]; }
+
+function isRecordLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSnowflake(value: unknown): value is string {
+  return typeof value === "string" && /^\d{1,32}$/.test(value);
+}
+
+function parseLiveGuildPayload(value: unknown, requestedGuildId: string): LiveDiscordGuildPayload {
+  if (!isRecordLike(value) || value.id !== requestedGuildId || !isSnowflake(value.owner_id)) {
+    throw new DiscordServiceError("DISCORD_API_ERROR", "Discord returned an invalid guild authorization response.");
+  }
+  return { id: value.id as string, owner_id: value.owner_id };
+}
+
+function parseLiveRolePayloads(value: unknown): LiveDiscordRolePayload[] {
+  if (!Array.isArray(value)) throw new DiscordServiceError("DISCORD_API_ERROR", "Discord returned an invalid role authorization response.");
+  return value.map((item) => {
+    if (!isRecordLike(item) || !isSnowflake(item.id) ||
+      typeof item.permissions !== "string" || !/^\d+$/.test(item.permissions)) {
+      throw new DiscordServiceError("DISCORD_API_ERROR", "Discord returned an invalid role authorization response.");
+    }
+    try { BigInt(item.permissions); } catch {
+      throw new DiscordServiceError("DISCORD_API_ERROR", "Discord returned an invalid role permission bitfield.");
+    }
+    return { id: item.id, permissions: item.permissions };
+  });
+}
+
+function parseLiveMemberPayload(value: unknown, requestedActorId: string): LiveDiscordMemberPayload {
+  if (!isRecordLike(value) || !isRecordLike(value.user) || value.user.id !== requestedActorId ||
+    !Array.isArray(value.roles) || !value.roles.every(isSnowflake)) {
+    throw new DiscordServiceError("DISCORD_API_ERROR", "Discord returned an invalid member authorization response.");
+  }
+  return { user: { id: value.user.id as string }, roles: value.roles as string[] };
+}
+
+/**
+ * Fetches current membership and role permissions from Discord instead of trusting
+ * the login-time OAuth permission snapshot. Callers must still supply the
+ * action-specific required permission bit; this helper intentionally invents no
+ * VREEO-to-Discord permission mapping.
+ */
+export async function fetchLiveDiscordPermissionSnapshot(
+  service: DiscordRestService,
+  input: { guildId: string; actorDiscordUserId: string; correlationId?: string },
+): Promise<LiveDiscordPermissionSnapshot> {
+  if (!isSnowflake(input.guildId) || !isSnowflake(input.actorDiscordUserId)) {
+    throw new TypeError("Guild and actor IDs must be Discord snowflakes");
+  }
+  const context = { guildId: input.guildId, correlationId: input.correlationId };
+  const [guildPayload, rolesPayload, memberPayload] = await Promise.all([
+    service.request<unknown>({ method: "GET", route: `/guilds/${input.guildId}`, context: { ...context, operation: "authorization.guild.fetch" } }),
+    service.request<unknown>({ method: "GET", route: `/guilds/${input.guildId}/roles`, context: { ...context, operation: "authorization.roles.fetch" } }),
+    service.request<unknown>({ method: "GET", route: `/guilds/${input.guildId}/members/${input.actorDiscordUserId}`, context: { ...context, operation: "authorization.member.fetch" } }),
+  ]);
+  const guild = parseLiveGuildPayload(guildPayload, input.guildId);
+  const roles = parseLiveRolePayloads(rolesPayload);
+  const member = parseLiveMemberPayload(memberPayload, input.actorDiscordUserId);
+  const rolesById = new Map(roles.map((role) => [role.id, role]));
+  const assignedRoleIds = [...new Set([input.guildId, ...member.roles])];
+  if (assignedRoleIds.some((roleId) => !rolesById.has(roleId))) {
+    throw new DiscordServiceError("DISCORD_API_ERROR", "Discord returned a member role that is not present in the guild role list.");
+  }
+  let permissionBits = 0n;
+  for (const roleId of assignedRoleIds) permissionBits |= BigInt(rolesById.get(roleId)!.permissions);
+  const isGuildOwner = guild.owner_id === input.actorDiscordUserId;
+  const isAdministrator = (permissionBits & 8n) === 8n;
+  return {
+    guildId: guild.id,
+    actorDiscordUserId: member.user.id,
+    guildOwnerDiscordUserId: guild.owner_id,
+    roleIds: member.roles,
+    permissionBits,
+    isGuildOwner,
+    isAdministrator,
+  };
+}
+
+/** requiredPermissionBits must come from an explicitly approved action mapping. */
+export function hasLiveDiscordPermission(
+  snapshot: LiveDiscordPermissionSnapshot,
+  requiredPermissionBits: bigint,
+): boolean {
+  if (requiredPermissionBits <= 0n) throw new TypeError("Required Discord permission bits must be positive");
+  if (snapshot.isGuildOwner || snapshot.isAdministrator) return true;
+  return (snapshot.permissionBits & requiredPermissionBits) === requiredPermissionBits;
+}

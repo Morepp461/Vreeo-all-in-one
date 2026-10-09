@@ -91,7 +91,8 @@ describe("Discord service boundary", () => {
       roleIds: [], permissionBits: 0n, isGuildOwner: false, isAdministrator: false,
     }, 0n)).toThrow(/must be positive/);
   });
-\n  it("normalizes failures without logging raw error messages or request payloads", async () => {
+
+  it("normalizes failures without logging raw error messages or request payloads", async () => {
     const messages: string[] = [];
     const metrics: boolean[] = [];
     const transport: DiscordRestTransport = { async request<T>() { throw new Error("secret payload should not be logged"); } };

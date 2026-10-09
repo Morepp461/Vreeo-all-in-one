@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Logger } from "pino";
-import { Redis } from "ioredis";
+import { createRawRedisConnection, type RedisConnection as RedisClient } from "./client.cjs";
 
-export type RedisConnection = Redis;
+export type RedisConnection = RedisClient;
 
 export interface CreateRedisConnectionOptions {
   url: string;
@@ -10,7 +10,7 @@ export interface CreateRedisConnectionOptions {
 }
 
 export function createRedisConnection(options: CreateRedisConnectionOptions): RedisConnection {
-  const connection = new Redis(options.url, {
+  const connection = createRawRedisConnection(options.url, {
     lazyConnect: true,
     maxRetriesPerRequest: null,
     enableReadyCheck: true,

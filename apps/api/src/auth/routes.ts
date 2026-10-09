@@ -14,11 +14,11 @@ const sessionCookieName = 'vreeo_session';
 const stateCookieName = 'vreeo_oauth_state';
 const callbackPath = '/api/v1/auth/discord/callback';
 const discordGuildSchema = z.object({
-  id: z.string().regex(/^\\d{1,32}$/),
+  id: z.string().regex(/^\d{1,32}$/),
   name: z.string().min(1).max(200),
   icon: z.string().nullable().optional(),
   owner: z.boolean().optional(),
-  permissions: z.string().regex(/^\\d+$/),
+  permissions: z.string().regex(/^\d+$/),
 });
 const oauthQuerySchema = z.object({
   code: z.string().min(1).optional(),

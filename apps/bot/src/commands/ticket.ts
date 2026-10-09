@@ -372,13 +372,6 @@ export const ticketCommand: VreeoCommand = {
         });
         await interaction.editReply(`Your ticket has been opened: <#${channel.id}>`);
       } catch (error) {
-        if (error instanceof ActiveTicketLimitError) {
-          await replyFailure(
-            interaction,
-            'You already have 3 active tickets in this server. Close one before opening another.',
-          );
-          return;
-        }
         if (channelId) {
           await guild.channels
             .delete(channelId, 'VREEO ticket database persistence failed')

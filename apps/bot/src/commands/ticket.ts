@@ -3,34 +3,15 @@ import { prisma } from '@vreeo/database/client';
 import type { VreeoCommand } from './types.js';
 import { syncGuild } from '../services/guild-sync.js';
 import { replyFailure } from './moderation/shared.js';
-
-type TicketSettings = {
-  ticketCategoryId: string | null;
-  staffRoleId: string | null;
-};
+import {
+  createTicketChannel,
+  loadTicketSettings,
+  readTicketSettings,
+} from '../services/ticket-service.js';
 
 function readObject(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
-}
-
-function readTicketSettings(config: unknown): TicketSettings {
-  const object = readObject(config);
-  const category = object.ticketCategoryId;
-  const staffRole = object.ticketStaffRoleId;
-  return {
-    ticketCategoryId:
-      typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
-    staffRoleId: typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
-  };
-}
-
-async function loadTicketSettings(guildId: string): Promise<TicketSettings> {
-  const feature = await prisma.guildFeature.findUnique({
-    where: { guildId_featureKey: { guildId, featureKey: 'tickets' } },
-    select: { config: true },
-  });
-  return readTicketSettings(feature?.config);
 }
 
 function isStaff(interaction: Parameters<VreeoCommand['execute']>[0], staffRoleId: string | null) {
@@ -229,7 +210,8 @@ export const ticketCommand: VreeoCommand = {
     }
 
     if (subcommand === 'open') {
-      if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageChannels)) {
+      const botMember = guild.members.me;
+      if (!botMember?.permissions.has(PermissionFlagsBits.ManageChannels)) {
         return ticketFailure(
           interaction,
           'VREEO needs the Manage Channels permission to open tickets.',
@@ -241,6 +223,91 @@ export const ticketCommand: VreeoCommand = {
       }
 
       const settings = await loadTicketSettings(guildRecord.id);
+      if (!settings.enabled) {
+        return ticketFailure(
+          interaction,
+          'Tickets are disabled or not configured yet. Ask a server administrator to run /ticket setup.',
+        );
+      }
+      if (!settings.ticketCategoryId) {
+        return ticketFailure(
+          interaction,
+          'Tickets are not configured yet. Ask a server administrator to run /ticket setup.',
+        );
+      }
+      const category = await guild.channels.fetch(settings.ticketCategoryId).catch(() => null);
+      if (
+        !category ||
+        category.type !== ChannelType.GuildCategory ||
+        category.guildId !== guild.id
+      ) {
+        return ticketFailure(
+          interaction,
+          'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.',
+        );
+      }
+      if (settings.staffRoleId && !guild.roles.cache.has(settings.staffRoleId)) {
+        return ticketFailure(
+          interaction,
+          'The configured ticket staff role no longer exists. Ask an administrator to run /ticket setup again.',
+        );
+      }
+
+      try {
+        const result = await createTicketChannel({
+          guild,
+          guildRecordId: guildRecord.id,
+          userId: interaction.user.id,
+          interactionId: interaction.id,
+          subject,
+          categoryId: category.id,
+          staffRoleId: settings.staffRoleId,
+          botUserId: botMember.id,
+        });
+        if (result.status === 'failed') {
+          return ticketFailure(
+            interaction,
+            'This ticket request already failed. Please start a new ticket request.',
+          );
+        }
+        if (result.existing) {
+          if (result.channelId) {
+            await interaction.editReply({
+              content: `This ticket request was already processed: <#${result.channelId}>.`,
+              allowedMentions: { parse: [] },
+            });
+          } else {
+            await interaction.editReply({
+              content: 'This ticket request is already being processed. Please wait a moment.',
+              allowedMentions: { parse: [] },
+            });
+          }
+          return;
+        }
+        if (!result.channelId) {
+          return ticketFailure(
+            interaction,
+            'VREEO created the ticket record but could not confirm its channel. Ask an administrator to reconcile it.',
+          );
+        }
+        await interaction.editReply({
+          content: `Your ticket has been opened: <#${result.channelId}>`,
+          allowedMentions: { parse: [] },
+        });
+      } catch (error) {
+        console.error(
+          'Ticket creation failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        return ticketFailure(
+          interaction,
+          'VREEO could not create the ticket. Check channel permissions and try again.',
+        );
+      }
+      return;
+    }
+
+    const settings = await loadTicketSettings(guildRecord.id);
       if (!settings.ticketCategoryId) {
         return ticketFailure(
           interaction,

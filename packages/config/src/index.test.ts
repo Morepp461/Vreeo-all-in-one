@@ -38,7 +38,7 @@ describe("environment configuration", () => {
   it("requires the database URL for production bot registry sync", () => {
     expect(loadBotConfig({ DISCORD_TOKEN: "test-token" }).databaseUrl).toContain("postgresql://");
     expect(() => loadBotConfig({ NODE_ENV: "production", DISCORD_TOKEN: "test-token" })).toThrow(/DATABASE_URL/);
-    expect(() => loadBotConfig({ NODE_ENV: "production", DATABASE_URL: localApiEnvironment.DATABASE_URL, DISCORD_TOKEN: "test-token" })).not.toThrow();
+    expect(() => loadBotConfig({ NODE_ENV: "production", DATABASE_URL: localApiEnvironment.DATABASE_URL, REDIS_URL: localApiEnvironment.REDIS_URL, DISCORD_TOKEN: "test-token" })).not.toThrow();
   });
 
   it("requires Redis for production bot cooldowns", () => {

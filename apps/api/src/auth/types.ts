@@ -25,7 +25,14 @@ export interface DiscordOAuthProvider {
  fetchIdentity(accessToken: string): Promise<DiscordOAuthIdentity>;
  fetchGuilds(accessToken: string): Promise<DiscordOAuthGuild[]>;
 }
-export interface AuthRouteDependencies { config: ApiConfig; repository: AuthRepository; stateStore: OAuthStateStore; provider: DiscordOAuthProvider | null; }
+export interface LiveDiscordGuildAccess { allowed: boolean; isOwner: boolean; roleIds: string[]; discordPermissions: string; }
+export interface AuthRouteDependencies {
+  config: ApiConfig;
+  repository: AuthRepository;
+  stateStore: OAuthStateStore;
+  provider: DiscordOAuthProvider | null;
+  liveGuildAccess?: (discordGuildId: string, discordUserId: string) => Promise<LiveDiscordGuildAccess>;
+}
 export class AuthRepositoryError extends Error {
  constructor(readonly code: "USER_DEACTIVATED") { super("Authentication is not available for this account."); this.name = "AuthRepositoryError"; }
 }

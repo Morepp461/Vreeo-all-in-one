@@ -56,7 +56,6 @@ model Guild {
   settings           GuildSettings?
   features           GuildFeature[]
   members            GuildMember[]
-  memberRoles        GuildMemberRole[]
   roles              GuildRole[]
   channels            GuildChannel[]
   permissionRoles    PermissionRole[]
@@ -123,6 +122,7 @@ model GuildMember {
   roles          GuildMemberRole[]
 
   @@unique([guildId, discordUserId])
+  @@unique([id, guildId])
   @@index([userId])
   @@index([guildId, isMember])
   @@map("guild_members")
@@ -135,8 +135,7 @@ model GuildMemberRole {
   discordRoleId String      @map("discord_role_id") @db.VarChar(32)
   assignedAt    DateTime    @default(now()) @map("assigned_at") @db.Timestamptz(6)
   removedAt     DateTime?   @map("removed_at") @db.Timestamptz(6)
-  guild         Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
-  member        GuildMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  member        GuildMember @relation(fields: [memberId, guildId], references: [id, guildId], onDelete: Cascade)
 
   @@index([memberId, discordRoleId, removedAt])
   @@index([guildId, discordRoleId])

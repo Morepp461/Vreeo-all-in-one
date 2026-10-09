@@ -4,6 +4,8 @@ import {
   type AuthorizationResult,
   type PermissionKey,
   type PermissionOverride,
+  type RolePermissionGrant,
+  isPermissionKey,
 } from "@vreeo/types";
 
 export interface PermissionDefinition {
@@ -34,8 +36,10 @@ export interface EvaluatePermissionInput {
   requestedGuildId: string;
   guildAccess: boolean;
   actor: ActorContext;
-  permission: PermissionKey;
+  permission: string;
   overrides: readonly PermissionOverride[];
+  /** Server-loaded permission_roles rows for this guild. */
+  roleGrants: readonly RolePermissionGrant[];
   /** The selected conceptual profile's permissions; profile assignments are supplied by policy/configuration. */
   defaultPermissions: readonly PermissionKey[];
   discord?: DiscordPermissionContext;
@@ -76,6 +80,9 @@ export function evaluatePermission(input: EvaluatePermissionInput): Authorizatio
     return { allowed: false, reasons: ["GUILD_ACCESS_DENIED"] };
   }
 
+  if (!isPermissionKey(input.permission)) return { allowed: false, reasons: ["UNKNOWN_PERMISSION"] };
+  const permission = input.permission as PermissionKey;
+
   const reasons: AuthorizationResult["reasons"] = [];
   if (input.discord) {
     if (input.discord.requiredPermissions.some((permission) => !input.discord?.grantedPermissions.includes(permission))) {
@@ -87,18 +94,24 @@ export function evaluatePermission(input: EvaluatePermissionInput): Authorizatio
   }
   if (reasons.length > 0) return { allowed: false, reasons };
 
-  const override = resolveOverride(input.overrides, input.actor, input.permission);
-  const allowed = override === "allow"
-    ? true
-    : override === "deny"
-      ? false
-      : input.defaultPermissions.includes(input.permission);
+  const override = resolveOverride(input.overrides, input.actor, permission);
+  if (override === "allow") return { allowed: true, reasons: [] };
+  if (override === "deny") return { allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] };
+
+  const assignedRoleIds = new Set(input.actor.roleIds);
+  const roleEffects = input.roleGrants
+    .filter((grant) => grant.guildId === input.requestedGuildId && assignedRoleIds.has(grant.discordRoleId))
+    .map((grant) => {
+      const value = grant.permissionSet[permission];
+      return value === true ? "allow" as const : value === false ? "deny" as const : undefined;
+    });
+  if (roleEffects.includes("deny")) return { allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] };
+  if (roleEffects.includes("allow")) return { allowed: true, reasons: [] };
+
+  const allowed = input.defaultPermissions.includes(permission);
 
   return allowed
     ? { allowed: true, reasons: [] }
     : { allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] };
 }
 
-export function isPermissionKey(value: string): value is PermissionKey {
-  return (PERMISSION_KEYS as readonly string[]).includes(value);
-}

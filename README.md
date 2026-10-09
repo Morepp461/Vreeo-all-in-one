@@ -30,11 +30,13 @@ apps/
   admin/        Internal admin application (not implemented yet)
 packages/
   config/       Shared environment validation
+  types/        Stable permission/feature identifiers, DTOs, and event contracts
+  permissions/  Central authorization evaluator
+  entitlements/ Central feature/plan entitlement resolution
   database/     Prisma schema, core/MVP migrations, seed, and client boundary
   redis/        Shared Redis connection, cache, cooldown, and lock primitives
   storage/      Provider-neutral object-storage contract
   discord/      Shared Discord adapters (not implemented yet)
-  entitlements/ Feature availability and plan rules (not implemented yet)
   events/       Internal event contracts/bus (not implemented yet)
   logger/       Structured logging
   permissions/  Shared authorization primitives (not implemented yet)

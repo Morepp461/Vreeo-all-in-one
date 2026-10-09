@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ActorContext, PermissionOverride, PermissionKey } from "@vreeo/types";
-import { evaluatePermission, isPermissionKey, PERMISSION_DEFINITIONS } from "./index.js";
+import { evaluatePermission, PERMISSION_DEFINITIONS } from "./index.js";
+import { isPermissionKey } from "@vreeo/types";
 
 const actor: ActorContext = {
   actorType: "user",
@@ -19,6 +20,7 @@ function evaluate(overrides: readonly PermissionOverride[], defaultPermissions: 
     actor,
     permission,
     overrides,
+    roleGrants: [],
     defaultPermissions,
   });
 }
@@ -39,10 +41,10 @@ const userDeny: PermissionOverride = {
 describe("permission evaluation", () => {
   it("denies before checking permissions when authentication or guild access is absent", () => {
     expect(evaluatePermission({
-      authenticated: false, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: false, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], roleGrants: [], defaultPermissions: [permission],
     })).toEqual({ allowed: false, reasons: ["UNAUTHENTICATED"] });
     expect(evaluatePermission({
-      authenticated: true, requestedGuildId: actor.guildId, guildAccess: false, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: false, actor, permission, overrides: [], roleGrants: [], defaultPermissions: [permission],
     })).toEqual({ allowed: false, reasons: ["GUILD_ACCESS_DENIED"] });
   });
 
@@ -54,6 +56,7 @@ describe("permission evaluation", () => {
       actor,
       permission,
       overrides: [userAllow],
+      roleGrants: [],
       defaultPermissions: [permission],
     })).toEqual({ allowed: false, reasons: ["GUILD_ACCESS_DENIED"] });
   });
@@ -69,13 +72,45 @@ describe("permission evaluation", () => {
 
   it("requires Discord capabilities and bot hierarchy when supplied", () => {
     expect(evaluatePermission({
-      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], roleGrants: [], defaultPermissions: [permission],
+      roleGrants: [],
       discord: { requiredPermissions: ["BanMembers"], grantedPermissions: [] },
     })).toEqual({ allowed: false, reasons: ["MISSING_DISCORD_PERMISSION"] });
     expect(evaluatePermission({
       authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], defaultPermissions: [permission],
+      roleGrants: [],
       discord: { requiredPermissions: [], grantedPermissions: [], botHierarchyAllowed: false },
     })).toEqual({ allowed: false, reasons: ["BOT_HIERARCHY_BLOCKED"] });
+  });
+
+  it("applies server-loaded role permission sets with deny precedence and tenant isolation", () => {
+    const roleGrants = [
+      { guildId: "guild-1", discordRoleId: "role-moderator", permissionSet: { "moderation.warn": true } },
+      { guildId: "guild-1", discordRoleId: "role-community", permissionSet: { "moderation.warn": false } },
+    ];
+    expect(evaluatePermission({
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [],
+      roleGrants, defaultPermissions: [permission],
+    })).toEqual({ allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] });
+
+    expect(evaluatePermission({
+      authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [],
+      roleGrants: [{ guildId: "another-guild", discordRoleId: "role-moderator", permissionSet: { "moderation.warn": true } }],
+      defaultPermissions: [],
+    })).toEqual({ allowed: false, reasons: ["MISSING_VREEO_PERMISSION"] });
+  });
+
+  it("denies unknown permission strings at runtime", () => {
+    expect(evaluatePermission({
+      authenticated: true,
+      requestedGuildId: actor.guildId,
+      guildAccess: true,
+      actor,
+      permission: "moderation.magic",
+      overrides: [],
+      roleGrants: [],
+      defaultPermissions: [permission],
+    })).toEqual({ allowed: false, reasons: ["UNKNOWN_PERMISSION"] });
   });
 
   it("exposes only keys from the specification inventory", () => {

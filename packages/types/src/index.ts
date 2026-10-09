@@ -46,6 +46,25 @@ export const PERMISSION_KEYS = [
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
 
+export const INTERNAL_ADMIN_PERMISSION_KEYS = [
+  "admin.users.read",
+  "admin.guilds.read",
+  "admin.billing.read",
+  "admin.entitlements.manage",
+  "admin.feature_flags.manage",
+  "admin.abuse.manage",
+  "admin.system.manage",
+] as const;
+export type InternalAdminPermissionKey = (typeof INTERNAL_ADMIN_PERMISSION_KEYS)[number];
+
+export function isPermissionKey(value: string): value is PermissionKey {
+  return (PERMISSION_KEYS as readonly string[]).includes(value);
+}
+
+export function isInternalAdminPermissionKey(value: string): value is InternalAdminPermissionKey {
+  return (INTERNAL_ADMIN_PERMISSION_KEYS as readonly string[]).includes(value);
+}
+
 export const FEATURE_KEYS = [
   "basic_moderation", "advanced_moderation", "basic_automod", "advanced_automod",
   "security", "advanced_security", "tickets", "advanced_tickets", "forms", "advanced_forms",
@@ -91,12 +110,19 @@ export interface PermissionOverride {
   effect: PermissionEffect;
 }
 
+export interface RolePermissionGrant {
+  guildId: string;
+  discordRoleId: string;
+  permissionSet: Readonly<Record<string, unknown>>;
+}
+
 export type AuthorizationReason =
   | "UNAUTHENTICATED"
   | "GUILD_ACCESS_DENIED"
   | "MISSING_DISCORD_PERMISSION"
   | "BOT_HIERARCHY_BLOCKED"
   | "MISSING_VREEO_PERMISSION"
+  | "UNKNOWN_PERMISSION"
   | "FEATURE_DISABLED"
   | "FEATURE_NOT_ENTITLED"
   | "LIMIT_EXCEEDED"

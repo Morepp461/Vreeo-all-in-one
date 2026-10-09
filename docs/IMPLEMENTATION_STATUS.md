@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Current stage: infrastructure foundation
+## Current stage: shared domain contracts and authorization foundations
 
 This branch builds on `feat/database-foundation`. It is not a production release and has not been merged into `main`.
 
@@ -18,12 +18,21 @@ This branch builds on `feat/database-foundation`. It is not a production release
 - Provider-neutral object-storage interface; no concrete provider has been selected or configured.
 - Redis-backed API rate limiting and readiness checks for PostgreSQL, Redis, and BullMQ backend.
 
+### Implemented on this branch
+
+- Shared domain identifiers and DTO/event contracts in `packages/types`.
+- Central permission evaluator covering authentication, guild-context match, Discord permission/hierarchy checks, explicit override precedence, server-loaded role permission sets, and configured default profiles.
+- Pure entitlement resolver with explicit source precedence, expiration, subscription-state handling, and fail-closed behavior for unknown states.
+- Regression tests cover tenant isolation, runtime unknown permission denial, role-level grants/denies, entitlement expiration, and subscription states.
+
 ### Not implemented yet
 
+- OAuth2/session authentication and persistent browser session lifecycle.
+- Guild discovery/access service and route middleware wired to live database/Discord data.
+- Domain repositories and the Moderation Warn vertical slice.
 - Dedicated worker process and concrete domain job handlers; queue primitives exist but no business jobs are registered yet.
 - Metrics and production observability.
-- Domain repositories and the Moderation Warn vertical slice.
-- OAuth2/session auth, guild context, permissions/entitlements, dashboard/admin, and Discord command/event routing.
+- Dashboard/admin and Discord command/event routing.
 - Post-MVP database domains listed in the database package README.
 - Committed pnpm lockfile and production deployment configuration.
 
@@ -37,12 +46,12 @@ This branch builds on `feat/database-foundation`. It is not a production release
 
 ### Verification status
 
-GitHub Actions passed on commit `92b71f6928bbb7206dceb2236f15e8c73185e3f8`, including Redis primitive and queue retry/idempotency/DLQ integration tests, Prisma validation and migrations, schema drift, typecheck, and build. The API queue-readiness integration in this commit is awaiting CI. PostgreSQL and Redis are ephemeral CI services; local Docker startup and live Discord connection remain unverified.
+GitHub Actions passed on commit `83990171a33ede414070e8253359bbfbd67f6115`, including infrastructure checks plus shared types, permission precedence/tenant-isolation tests, and entitlement-resolution tests. PostgreSQL and Redis are ephemeral CI services; local Docker startup and live Discord connection remain unverified.
 
 ### Next sequence
 
-1. Verify API readiness against PostgreSQL, Redis, and BullMQ in CI.
-2. Review remaining shared-package boundaries and define domain contracts.
-3. Implement OAuth2/session and guild-access foundations.
-4. Implement centralized permissions and entitlements before moderation actions.
+1. Implement OAuth2 state validation, Discord identity exchange, secure cookie/session lifecycle, logout, and session revocation.
+2. Implement guild discovery/access validation with server-side Discord permission lookup and tenant-scoped repositories.
+3. Wire the permission and entitlement packages to database-backed policy loaders.
+4. Implement bot command registry and interaction routing.
 5. Build Moderation Warn end-to-end with idempotency, case/warning persistence, audit logging, API/bot handlers, and tests.

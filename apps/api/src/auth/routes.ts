@@ -212,9 +212,9 @@ export async function authRoutes(app: FastifyInstance) {
         update: {
           scopes,
           accessTokenCiphertext: encryptOAuthToken(accessToken, config.oauthTokenEncryptionKey),
-          refreshTokenCiphertext: refreshToken
-            ? encryptOAuthToken(refreshToken, config.oauthTokenEncryptionKey)
-            : null,
+          ...(refreshToken
+            ? { refreshTokenCiphertext: encryptOAuthToken(refreshToken, config.oauthTokenEncryptionKey) }
+            : {}),
           tokenExpiresAt,
         },
       });
@@ -446,6 +446,7 @@ export async function authRoutes(app: FastifyInstance) {
       return sendApiError(reply, request.id, 401, 'AUTH_REQUIRED', 'Please sign in to continue.');
     }
 
+    reply.header('Cache-Control', 'no-store');
     return reply.send({ data: session.user });
   });
 
@@ -486,6 +487,7 @@ export async function authRoutes(app: FastifyInstance) {
       },
     });
 
+    reply.header('Cache-Control', 'no-store');
     return reply.send({
       data: sessions.map((item) => ({ ...item, current: item.id === session.id })),
     });

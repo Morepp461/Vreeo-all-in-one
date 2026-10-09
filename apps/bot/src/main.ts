@@ -4,6 +4,7 @@ import { prisma } from '@vreeo/database/client';
 import { commandMap } from './commands/index.js';
 import { markGuildLeft, syncGuild } from './services/guild-sync.js';
 import { getBotToken } from './config.js';
+import { handleTicketPanelButton } from './services/ticket-panels.js';
 
 const token = getBotToken();
 const client = new Client({
@@ -89,6 +90,12 @@ client.on('autoModerationActionExecution', async (execution) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+  if (interaction.isButton()) {
+    if (interaction.customId.startsWith('vreeo:ticket:create:')) {
+      await handleTicketPanelButton(interaction);
+    }
+    return;
+  }
   if (!interaction.isChatInputCommand()) return;
   const command = commandMap.get(interaction.commandName);
 

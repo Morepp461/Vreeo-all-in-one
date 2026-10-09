@@ -63,7 +63,7 @@ docs/
 5. Seed the baseline plan records: `pnpm --filter @vreeo/database seed`
 6. Fill in a valid `DISCORD_TOKEN` if running the bot, then use `pnpm dev`.
 
-The API exposes `GET /health` for liveness and `GET /health/ready` for PostgreSQL, Redis, and BullMQ readiness. Discord OAuth login uses state/PKCE, stores only a hash of the opaque session token, and exposes `GET /api/v1/auth/me`, `GET /api/v1/auth/sessions`, and `GET /api/v1/auth/guilds`. Guild discovery is refreshed during login and lists only servers where the user is owner or has Administrator/Manage Server, and where the bot registry confirms the bot is installed. The bot syncs its guild registry to PostgreSQL. Guild-scoped authorization middleware, dashboard UI, command routing, and moderation domain actions are still in progress.
+The API exposes `GET /health` for liveness and `GET /health/ready` for PostgreSQL, Redis, and BullMQ readiness. Discord OAuth login uses state/PKCE, stores only a hash of the opaque session token, and exposes `GET /api/v1/auth/me`, `GET /api/v1/auth/sessions`, and `GET /api/v1/auth/guilds`. Guild discovery is refreshed during login and lists only servers where the user is owner or has Administrator/Manage Server, and where the bot registry confirms the bot is installed. The bot syncs its guild registry to PostgreSQL. `GET /api/v1/guilds/:guildId/context` demonstrates the session-bound tenant guard. Guild permissions are a login-time snapshot; Discord permission changes are not revalidated until another login, so this is not yet sufficient alone for production-sensitive mutations. Dashboard UI, command routing, and moderation domain actions are still in progress.
 
 ## Security
 

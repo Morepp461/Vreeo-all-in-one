@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
@@ -41,17 +41,6 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - name: Format recent source changes
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/feature/bootstrap'
-        run: |
-          pnpm exec prettier --write apps/api/src/auth/routes.ts apps/bot/src/commands/moderation/case.ts apps/bot/src/commands/moderation/warnings.ts
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add apps/api/src/auth/routes.ts apps/bot/src/commands/moderation/case.ts apps/bot/src/commands/moderation/warnings.ts
-            git commit -m "style: format recent auth and moderation changes"
-            git push origin HEAD:feature/bootstrap
-          fi
       - name: Validate database schema and generate Prisma client
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public

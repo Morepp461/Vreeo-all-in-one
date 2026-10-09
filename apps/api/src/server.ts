@@ -7,6 +7,7 @@ import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
+import { prisma } from '@vreeo/database/client';
 import { authRoutes } from './auth/routes.js';
 import { sendApiError } from './http/errors.js';
 import { env } from './settings.js';
@@ -75,12 +76,20 @@ export function buildServer() {
     timestamp: new Date().toISOString(),
   }));
 
-  app.get('/ready', async (_request, reply) => {
-    // Readiness remains closed until database and Redis checks are wired.
-    return reply.code(503).send({
-      status: 'not_ready',
-      reason: 'dependency_checks_not_implemented',
-    });
+  app.get('/ready', async (request, reply) => {
+    try {
+      await prisma.$queryRaw\`SELECT 1\`;
+      return { status: 'ready', dependencies: { database: 'ok' } };
+    } catch (error) {
+      request.log.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'Readiness check failed',
+      );
+      return reply.code(503).send({
+        status: 'not_ready',
+        dependencies: { database: 'unavailable' },
+      });
+    }
   });
 
   return app;

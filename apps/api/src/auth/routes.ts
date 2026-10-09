@@ -634,7 +634,13 @@ export async function authRoutes(app: FastifyInstance) {
 
   app.delete('/auth/sessions/:sessionId', async (request, reply) => {
     if (request.headers.origin !== env.WEB_ORIGIN) {
-      return sendApiError(reply, request.id, 403, 'CSRF_INVALID', 'Request origin could not be verified.');
+      return sendApiError(
+        reply,
+        request.id,
+        403,
+        'CSRF_INVALID',
+        'Request origin could not be verified.',
+      );
     }
 
     if (request.headers.origin !== env.WEB_ORIGIN) {

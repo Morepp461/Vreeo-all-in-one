@@ -15,6 +15,7 @@ export interface AuthRepository {
  listSessions(userId: string, limit: number): Promise<AuthSessionRecord[]>;
  revokeSession(userId: string, sessionId: string, at: Date): Promise<boolean>;
  listAccessibleGuilds(userId: string): Promise<AccessibleGuildRecord[]>;
+ getAccessibleGuild(userId: string, discordGuildId: string): Promise<AccessibleGuildRecord | null>;
 }
 export interface OAuthStateStore { issue(state: string, ttlSeconds: number, codeVerifier?: string): Promise<boolean>; consume(state: string): Promise<string | boolean | null>; }
 export interface DiscordOAuthProvider {

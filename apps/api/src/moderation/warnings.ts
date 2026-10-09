@@ -163,7 +163,7 @@ export async function createWarning(database: PrismaClient, input: CreateWarning
     };
     await tx.idempotencyKey.update({
       where: { scope_keyHash: { scope, keyHash } },
-      data: { responseStatus: 201, responseBody: body },
+      data: { responseStatus: 201, responseBody: { caseId: body.caseId, caseNumber: body.caseNumber, warningId: body.warningId, targetUserId: body.targetUserId, moderatorUserId: body.moderatorUserId, reason: body.reason, status: body.status, createdAt: body.createdAt } },
     });
     return { status: 201, body, replayed: false };
   });

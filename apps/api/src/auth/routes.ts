@@ -499,6 +499,12 @@ export async function authRoutes(app: FastifyInstance) {
       );
     }
 
+    const settingsData = {
+      ...(patch.data.locale !== undefined ? { locale: patch.data.locale } : {}),
+      ...(patch.data.timezone !== undefined ? { timezone: patch.data.timezone } : {}),
+      ...(patch.data.prefix !== undefined ? { prefix: patch.data.prefix } : {}),
+    };
+
     let config;
     try {
       config = getAuthConfig();
@@ -532,8 +538,8 @@ export async function authRoutes(app: FastifyInstance) {
         });
         const updated = await tx.guildSettings.upsert({
           where: { guildId: access.guildId },
-          create: { guildId: access.guildId, ...patch.data },
-          update: patch.data,
+          create: { guildId: access.guildId, ...settingsData },
+          update: settingsData,
           select: { id: true, locale: true, timezone: true, prefix: true, updatedAt: true },
         });
 
@@ -549,7 +555,7 @@ export async function authRoutes(app: FastifyInstance) {
               timezone: previous?.timezone ?? 'UTC',
               prefix: previous?.prefix ?? null,
             },
-            newValue: patch.data,
+            newValue: settingsData,
             source: 'dashboard',
           },
         });

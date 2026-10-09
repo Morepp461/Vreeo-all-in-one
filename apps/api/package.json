@@ -18,6 +18,7 @@
     "zod": "^4.1.12",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^10.1.0",
-    "@vreeo/database": "workspace:*"
+    "@vreeo/database": "workspace:*",
+    "dotenv": "^16.6.1"
   }
 }

@@ -60,7 +60,7 @@ class MemoryAuthRepository implements AuthRepository {
     return this.session ? [this.session] : [];
   }
   async listAccessibleGuilds(_userId: string) { return this.accessibleGuilds; }
-  async getAccessibleGuild(_userId: string, guildId: string) { return this.accessibleGuilds.find((guild) => guild.id === guildId) ?? null; }
+  async getAccessibleGuild(_userId: string, guildId: string) { const guild = this.accessibleGuilds.find((item) => item.id === guildId); return guild ? { id: "internal-" + guild.id, discordGuildId: guild.id, name: guild.name, iconUrl: guild.iconUrl } : null; }
   async revokeSession(userId: string, sessionId: string, at: Date): Promise<boolean> {
     if (userId !== this.user.id || this.session?.id !== sessionId || this.revoked) return false;
     this.revoked = true;

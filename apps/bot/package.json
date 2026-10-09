@@ -9,7 +9,8 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src test",
-    "test": "vitest run"
+    "test": "vitest run",
+    "commands:deploy": "tsx src/register-commands.ts"
   },
   "dependencies": {
     "discord.js": "^14.22.1",

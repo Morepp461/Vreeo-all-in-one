@@ -71,7 +71,10 @@ export const autoModCommand: VreeoCommand = {
             .setRequired(true),
         )
         .addBooleanOption((option) =>
-          option.setName('enabled').setDescription('Whether the rule should be enabled.').setRequired(true),
+          option
+            .setName('enabled')
+            .setDescription('Whether the rule should be enabled.')
+            .setRequired(true),
         ),
     ),
   async execute(interaction) {
@@ -250,12 +253,7 @@ export const autoModCommand: VreeoCommand = {
         const discordRule = await interaction.guild.autoModerationRules
           .fetch(discordRuleId)
           .catch((error: unknown) => {
-            if (
-              error &&
-              typeof error === 'object' &&
-              'status' in error &&
-              error.status === 404
-            ) {
+            if (error && typeof error === 'object' && 'status' in error && error.status === 404) {
               return null;
             }
             throw error;
@@ -306,7 +304,10 @@ export const autoModCommand: VreeoCommand = {
           ]);
         } catch (error) {
           await discordRule
-            .setEnabled(previousEnabled, 'VREEO database update failed; rolling back AutoMod state.')
+            .setEnabled(
+              previousEnabled,
+              'VREEO database update failed; rolling back AutoMod state.',
+            )
             .catch(() => undefined);
           throw error;
         }

@@ -79,8 +79,9 @@ export async function createWarning(database: PrismaClient, input: CreateWarning
   }));
 
   return database.$transaction(async (tx) => {
-    // Transaction-scoped advisory lock serializes case-number allocation per guild.
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${input.guildId}))`;
+    // Lock the tenant row so concurrent case creation in this guild is serialized without a separate counter table.
+    const lockedGuild = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM guilds WHERE id = ${input.guildId}::uuid FOR UPDATE`;
+    if (lockedGuild.length === 0) throw new WarningValidationError("The target guild does not exist.");
 
     const prior = await tx.idempotencyKey.findUnique({ where: { scope_keyHash: { scope, keyHash } } });
     if (prior && prior.expiresAt > now) {

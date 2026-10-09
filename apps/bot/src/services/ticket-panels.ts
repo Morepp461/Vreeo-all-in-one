@@ -15,7 +15,7 @@ export async function handleTicketPanelButton(interaction: ButtonInteraction): P
 
   await interaction.deferReply({ ephemeral: true });
   const panelId = interaction.customId.slice('vreeo:ticket:create:'.length);
-  if (!/^[0-9a-f-]{36}$/i.test(panelId)) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(panelId)) {
     await interaction.editReply('This ticket panel button is invalid.');
     return;
   }

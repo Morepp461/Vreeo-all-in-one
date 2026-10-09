@@ -1,6 +1,6 @@
 # Implementation Status
 
-## Current stage: database-backed policy loaders
+## Current stage: bot command and event core
 
 This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
 
@@ -15,6 +15,9 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 - Bot syncs guild create/delete and cached guilds to the existing `Guild` model; no schema change was introduced.
 - Reusable tenant-context pre-handler validates the URL guild ID, resolves the HttpOnly session, and checks the user’s server-owned access snapshot before attaching a typed guild context. `GET /api/v1/guilds/:guildId/context` exercises the guard.
 - Prisma policy loaders load guild-scoped role grants and user/role overrides, reject malformed stored permission values, and map persisted entitlement rows/subscription state into the existing pure entitlement resolver contract. Unknown sources and unsafe limits fail closed.
+- Bot command registry validates unique slash command names and cooldowns; slash commands register globally or to `DISCORD_DEV_GUILD_ID`.
+- Interaction router handles slash commands, component interactions, and modals with Redis-backed per-user cooldowns, safe fallback responses, and structured error logs. `/vreeo-health` is the current foundation command.
+- Gateway event router centralizes ready/startup sync, guild create/delete registry updates, and Discord client errors; graceful shutdown closes PostgreSQL and Redis.
 - Production config requires OAuth credentials, HTTPS redirect/origin, and secure session cookies; development may leave OAuth unconfigured.
 
 ### Still not implemented
@@ -31,8 +34,8 @@ Infrastructure and shared package gates previously passed. The auth/session bran
 
 ### Next sequence
 
-1. Define a safe permission-refresh/revalidation strategy without persisting OAuth tokens contrary to the current source design, and specify default permission profiles in source/schema.
-2. Build the Moderation Warn domain service with transaction-safe case numbering, idempotency, audit logging, and tests; do not expose mutation routes until authorization is complete.
-3. Add bot command registration and connect the first vertical slice end-to-end.
+1. Build the Moderation Warn domain service with transaction-safe case numbering, idempotency, audit logging, and tests.
+2. Before exposing warning mutations, define default permission profiles and entitlement source precedence, and design permission revalidation without persisting OAuth tokens contrary to the current source design.
+3. Wire warn through bot, API, and dashboard only after those authorization policies are fully enforceable.
 4. Add bot command registry and interaction/event routers.
 5. Implement Moderation Warn end-to-end and expand the remaining MVP features.

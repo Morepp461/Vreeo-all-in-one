@@ -49,6 +49,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public
         run: pnpm --filter @vreeo/database db:migrate:deploy
+      - name: Show AutoMod formatter diff
+        run: pnpm exec prettier apps/bot/src/commands/automod.ts | diff -u apps/bot/src/commands/automod.ts - || true
       - name: Check formatting
         run: pnpm format:check
       - name: Quality checks

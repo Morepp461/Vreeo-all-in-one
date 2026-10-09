@@ -226,7 +226,11 @@ export const ticketCommand: VreeoCommand = {
         );
       }
       const category = await guild.channels.fetch(settings.ticketCategoryId).catch(() => null);
-      if (!category || category.type !== ChannelType.GuildCategory || category.guildId !== guild.id) {
+      if (
+        !category ||
+        category.type !== ChannelType.GuildCategory ||
+        category.guildId !== guild.id
+      ) {
         return replyFailure(
           interaction,
           'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.',
@@ -603,8 +607,8 @@ export const ticketCommand: VreeoCommand = {
           }),
         ]);
       } catch (error) {
-        await channel
-          .permissionOverwrites.edit(ticket.openerDiscordUserId, {
+        await channel.permissionOverwrites
+          .edit(ticket.openerDiscordUserId, {
             SendMessages: previousSendMessages,
             AddReactions: previousAddReactions,
           })
@@ -704,7 +708,12 @@ export const ticketCommand: VreeoCommand = {
         await prisma.$transaction([
           prisma.ticket.update({
             where: { id: ticket.id },
-            data: { status: 'open', closeReason: null, closedAt: null, claimedByDiscordUserId: null },
+            data: {
+              status: 'open',
+              closeReason: null,
+              closedAt: null,
+              claimedByDiscordUserId: null,
+            },
           }),
           prisma.auditLog.create({
             data: {
@@ -720,8 +729,8 @@ export const ticketCommand: VreeoCommand = {
           }),
         ]);
       } catch (error) {
-        await channel
-          .permissionOverwrites.edit(ticket.openerDiscordUserId, {
+        await channel.permissionOverwrites
+          .edit(ticket.openerDiscordUserId, {
             SendMessages: previousSendMessages,
             AddReactions: previousAddReactions,
             AttachFiles: previousAttachFiles,

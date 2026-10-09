@@ -1,4 +1,12 @@
-import { ChannelType, EmbedBuilder, PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
+import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  SlashCommandBuilder,
+} from 'discord.js';
 import { prisma } from '@vreeo/database/client';
 import type { VreeoCommand } from './types.js';
 import { syncGuild } from '../services/guild-sync.js';
@@ -80,6 +88,33 @@ export const ticketCommand: VreeoCommand = {
             .setName('clear_staff_role')
             .setDescription('Remove the currently configured ticket staff role.')
             .setRequired(false),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand
+        .setName('panel')
+        .setDescription('Publish a support ticket panel in a text channel.')
+        .addStringOption((option) =>
+          option
+            .setName('name')
+            .setDescription('Name shown on the panel and ticket.')
+            .setMinLength(3)
+            .setMaxLength(100)
+            .setRequired(true),
+        )
+        .addChannelOption((option) =>
+          option
+            .setName('channel')
+            .setDescription('Text channel where the panel will be published.')
+            .addChannelTypes(ChannelType.GuildText)
+            .setRequired(true),
+        )
+        .addStringOption((option) =>
+          option
+            .setName('description')
+            .setDescription('Short explanation shown on the panel.')
+            .setMaxLength(1000)
+            .setRequired(true),
         ),
     )
     .addSubcommand((subcommand) =>
@@ -204,6 +239,115 @@ export const ticketCommand: VreeoCommand = {
         await ticketFailure(
           interaction,
           'Ticket setup failed. Please check the bot permissions and try again.',
+        );
+      }
+      return;
+    }
+
+    if (subcommand === 'panel') {
+      if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+        return ticketFailure(interaction, 'You need the Manage Server permission to publish ticket panels.');
+      }
+      const botMember = guild.members.me;
+      if (!botMember?.permissions.has(PermissionFlagsBits.ManageChannels)) {
+        return ticketFailure(interaction, 'VREEO needs the Manage Channels permission to publish ticket panels.');
+      }
+
+      const name = interaction.options.getString('name', true).trim();
+      const description = interaction.options.getString('description', true).trim();
+      const selectedChannel = interaction.options.getChannel('channel', true);
+      const panelChannel = await guild.channels.fetch(selectedChannel.id).catch(() => null);
+      if (!panelChannel || panelChannel.type !== ChannelType.GuildText) {
+        return ticketFailure(interaction, 'Choose a text channel from this server.');
+      }
+      const channelPermissions = panelChannel.permissionsFor(botMember);
+      if (
+        !channelPermissions?.has([
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.EmbedLinks,
+        ])
+      ) {
+        return ticketFailure(
+          interaction,
+          'VREEO needs View Channel, Send Messages, and Embed Links permissions in the panel channel.',
+        );
+      }
+
+      let panelId: string | null = null;
+      let messageId: string | null = null;
+      try {
+        const panel = await prisma.ticketPanel.create({
+          data: {
+            guildId: guildRecord.id,
+            name,
+            channelDiscordId: panelChannel.id,
+            config: { description, buttonLabel: 'Open a ticket' },
+            enabled: true,
+          },
+          select: { id: true },
+        });
+        panelId = panel.id;
+
+        const message = await panelChannel.send({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(0x9182ff)
+              .setTitle(name)
+              .setDescription(description)
+              .setFooter({ text: 'VREEO Support • Press the button to open a private ticket' }),
+          ],
+          components: [
+            new ActionRowBuilder<ButtonBuilder>().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`vreeo:ticket:create:${panel.id}`)
+                .setLabel('Open a ticket')
+                .setStyle(ButtonStyle.Primary),
+            ),
+          ],
+          allowedMentions: { parse: [] },
+        });
+        messageId = message.id;
+
+        await prisma.$transaction([
+          prisma.ticketPanel.update({
+            where: { id: panel.id },
+            data: { messageDiscordId: message.id },
+          }),
+          prisma.auditLog.create({
+            data: {
+              guildId: guildRecord.id,
+              actorDiscordUserId: interaction.user.id,
+              action: 'ticket.panel.published',
+              resourceType: 'ticket_panel',
+              resourceId: panel.id,
+              newValue: {
+                name,
+                channelDiscordId: panelChannel.id,
+                messageDiscordId: message.id,
+              },
+              source: 'discord_bot',
+            },
+          }),
+        ]);
+        await interaction.editReply({
+          content: `Ticket panel **${name}** published in <#${panelChannel.id}>: ${message.url}`,
+          allowedMentions: { parse: [] },
+        });
+      } catch (error) {
+        if (messageId) {
+          await panelChannel.messages.delete(messageId).catch(() => undefined);
+        }
+        if (panelId) {
+          await prisma.ticketPanel.delete({ where: { id: panelId } }).catch(() => undefined);
+        }
+        console.error(
+          'Ticket panel publish failed:',
+          error instanceof Error ? error.message : 'Unknown error',
+        );
+        return ticketFailure(
+          interaction,
+          'VREEO could not publish the ticket panel. Check channel permissions and try again.',
         );
       }
       return;

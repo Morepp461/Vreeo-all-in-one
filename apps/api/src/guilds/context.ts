@@ -9,7 +9,7 @@ export interface VreeoGuildContext extends GuildContextRecord {
 
 declare module "fastify" {
   interface FastifyRequest {
-    vreeoGuildContext?: VreeoGuildContext;
+    vreeoGuildContext: VreeoGuildContext | null;
   }
 }
 

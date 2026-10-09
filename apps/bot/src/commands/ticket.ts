@@ -665,6 +665,18 @@ export const ticketCommand: VreeoCommand = {
       }
 
       const previousOverwrite = channel.permissionOverwrites.cache.get(ticket.openerDiscordUserId);
+      const previousViewChannel = previousOverwrite?.allow.has(PermissionFlagsBits.ViewChannel)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.ViewChannel)
+          ? false
+          : null;
+      const previousReadMessageHistory = previousOverwrite?.allow.has(
+        PermissionFlagsBits.ReadMessageHistory,
+      )
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.ReadMessageHistory)
+          ? false
+          : null;
       const previousSendMessages = previousOverwrite?.allow.has(PermissionFlagsBits.SendMessages)
         ? true
         : previousOverwrite?.deny.has(PermissionFlagsBits.SendMessages)
@@ -706,6 +718,8 @@ export const ticketCommand: VreeoCommand = {
       } catch (error) {
         await channel.permissionOverwrites
           .edit(ticket.openerDiscordUserId, {
+            ViewChannel: previousViewChannel,
+            ReadMessageHistory: previousReadMessageHistory,
             SendMessages: previousSendMessages,
             AddReactions: previousAddReactions,
           })
@@ -799,6 +813,18 @@ export const ticketCommand: VreeoCommand = {
       }
 
       const previousOverwrite = channel.permissionOverwrites.cache.get(ticket.openerDiscordUserId);
+      const previousViewChannel = previousOverwrite?.allow.has(PermissionFlagsBits.ViewChannel)
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.ViewChannel)
+          ? false
+          : null;
+      const previousReadMessageHistory = previousOverwrite?.allow.has(
+        PermissionFlagsBits.ReadMessageHistory,
+      )
+        ? true
+        : previousOverwrite?.deny.has(PermissionFlagsBits.ReadMessageHistory)
+          ? false
+          : null;
       const previousSendMessages = previousOverwrite?.allow.has(PermissionFlagsBits.SendMessages)
         ? true
         : previousOverwrite?.deny.has(PermissionFlagsBits.SendMessages)
@@ -857,6 +883,8 @@ export const ticketCommand: VreeoCommand = {
       } catch (error) {
         await channel.permissionOverwrites
           .edit(ticket.openerDiscordUserId, {
+            ViewChannel: previousViewChannel,
+            ReadMessageHistory: previousReadMessageHistory,
             SendMessages: previousSendMessages,
             AddReactions: previousAddReactions,
             AttachFiles: previousAttachFiles,

@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@vreeo/database";
-import { AuthRepositoryError, type AuthRepository, type AuthSessionRecord, type AuthSessionWithUser, type AuthUserRecord, type CompleteLoginInput } from "./types.js";
+import { AuthRepositoryError, type AuthRepository, type AuthSessionRecord, type AuthSessionWithUser, type AuthUserRecord, type CompleteLoginInput, type AccessibleGuildRecord } from "./types.js";
 function toUserRecord(user: { id: string; discordUserId: string; username: string; displayName: string; locale: string; deletedAt: Date | null; }): AuthUserRecord {
   return { id: user.id, discordUserId: user.discordUserId, username: user.username, displayName: user.displayName, locale: user.locale, deletedAt: user.deletedAt };
 }
@@ -12,6 +12,30 @@ function avatarUrl(discordUserId: string, avatar: string | null | undefined): st
 }
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly prisma: PrismaClient) {}
+  async listAccessibleGuilds(userId: string): Promise<AccessibleGuildRecord[]> {
+    const memberships = await this.prisma.guildMember.findMany({
+      where: {
+        userId,
+        isMember: true,
+        leftAt: null,
+        guild: { is: { active: true } },
+      },
+      select: {
+        guild: {
+          select: {
+            id: true,
+            discordGuildId: true,
+            name: true,
+            iconUrl: true,
+            ownerDiscordUserId: true,
+          },
+        },
+      },
+      orderBy: { guild: { name: "asc" } },
+    });
+    return memberships.map(({ guild }) => guild);
+  }
+
   async completeLogin(input: CompleteLoginInput): Promise<{ user: AuthUserRecord; session: AuthSessionRecord }> {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.upsert({

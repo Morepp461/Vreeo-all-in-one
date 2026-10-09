@@ -86,6 +86,22 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Aut
       return sendError(reply, request.id, 502, "SERVICE_UNAVAILABLE", "Discord login could not be completed. Please try again.");
     }
   });
+  app.get("/api/v1/guilds", async (request, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const current = await resolveSession(request, dependencies);
+    if (!current) return sendError(reply, request.id, 401, "AUTH_REQUIRED", "Please sign in to continue.");
+    const guilds = await repository.listAccessibleGuilds(current.user.id);
+    return {
+      data: guilds.map((guild) => ({
+        id: guild.id,
+        discordGuildId: guild.discordGuildId,
+        name: guild.name,
+        iconUrl: guild.iconUrl,
+        ownerDiscordUserId: guild.ownerDiscordUserId,
+      })),
+    };
+  });
+
   app.get("/api/v1/auth/me", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const current = await resolveSession(request, dependencies);

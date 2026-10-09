@@ -32,6 +32,16 @@ class MemoryAuthRepository implements AuthRepository {
   session: AuthSessionRecord | null = null;
   storedHash = "";
   revoked = false;
+  accessibleGuilds = [{
+    id: "internal-guild-1",
+    discordGuildId: "222222222222222222",
+    name: "VREEO Test Guild",
+    iconUrl: "",
+    ownerDiscordUserId: "123456789012345678",
+  }];
+  async listAccessibleGuilds(userId: string) {
+    return userId === this.user.id ? this.accessibleGuilds : [];
+  }
   async completeLogin(input: CompleteLoginInput) {
     this.storedHash = input.sessionHash;
     this.session = {
@@ -119,6 +129,32 @@ describe("OAuth and session routes", () => {
     expect(me.json().data).toEqual({
       id: "user-internal-1", discordUserId: "123456789012345678", username: "example", locale: "en",
     });
+  });
+
+  it("requires a session and only returns guilds scoped to the authenticated user", async () => {
+    const deps = setup();
+    app = await buildServer({ loggerOptions: { level: "silent" }, auth: deps.auth });
+    const anonymous = await app.inject({ method: "GET", url: "/api/v1/guilds" });
+    expect(anonymous.statusCode).toBe(401);
+
+    const start = await app.inject({ method: "GET", url: "/api/v1/auth/discord" });
+    const state = new URL(start.headers.location as string).searchParams.get("state") ?? "";
+    const stateCookie = cookiePair(start.headers["set-cookie"], "vreeo_oauth_state");
+    const callback = await app.inject({
+      method: "GET", url: `/api/v1/auth/discord/callback?code=valid-code&state=${state}`,
+      headers: { cookie: stateCookie },
+    });
+    const sessionCookie = cookiePair(callback.headers["set-cookie"], "vreeo_session");
+    const response = await app.inject({ method: "GET", url: "/api/v1/guilds", headers: { cookie: sessionCookie } });
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["cache-control"]).toBe("no-store");
+    expect(response.json().data).toEqual([{
+      id: "internal-guild-1",
+      discordGuildId: "222222222222222222",
+      name: "VREEO Test Guild",
+      iconUrl: "",
+      ownerDiscordUserId: "123456789012345678",
+    }]);
   });
 
   it("rejects state not bound to the initiating browser, invalid state, and replay", async () => {

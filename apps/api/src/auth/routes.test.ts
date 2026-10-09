@@ -13,12 +13,15 @@ const config: ApiConfig = {
   sessionCookieName: "vreeo_session", sessionCookieSameSite: "lax", sessionCookieSecure: false,
 };
 class MemoryStateStore implements OAuthStateStore {
-  readonly values = new Set<string>();
-  async issue(state: string, _ttlSeconds: number): Promise<boolean> { this.values.add(state); return true; }
-  async consume(state: string): Promise<boolean> {
-    if (!this.values.has(state)) return false;
-    this.values.delete(state);
+  readonly values = new Map<string, string>();
+  async issue(state: string, _ttlSeconds: number, verifier?: string): Promise<boolean> {
+    this.values.set(state, verifier ?? "test-verifier");
     return true;
+  }
+  async consume(state: string): Promise<string | null> {
+    const verifier = this.values.get(state);
+    this.values.delete(state);
+    return verifier ?? null;
   }
 }
 class MemoryAuthRepository implements AuthRepository {
@@ -65,9 +68,9 @@ function setup() {
   const stateStore = new MemoryStateStore();
   const repository = new MemoryAuthRepository();
   const provider: DiscordOAuthProvider = {
-    buildAuthorizationUrl: (state) => `https://discord.com/oauth2/authorize?state=${state}&client_id=client-id`,
-    exchangeCode: async (code) => {
-      if (code !== "valid-code") throw new Error("provider error");
+    buildAuthorizationUrl: (state, challenge) => `https://discord.com/oauth2/authorize?state=${state}&client_id=client-id&code_challenge=${challenge}&code_challenge_method=S256`,
+    exchangeCode: async (code, verifier) => {
+      if (code !== "valid-code" || !/^[A-Za-z0-9_-]{43}$/.test(verifier ?? "")) throw new Error("provider error");
       return { accessToken: "temporary-token", scopes: ["identify", "guilds"] };
     },
     fetchIdentity: async (token) => {
@@ -86,7 +89,7 @@ describe("OAuth and session routes", () => {
   let app: FastifyInstance | undefined;
   afterEach(async () => { await app?.close(); app = undefined; });
 
-  it("validates browser-bound OAuth state, creates an opaque session, and serves current user", async () => {
+  it("validates browser-bound OAuth state and PKCE, creates an opaque session, and serves current user", async () => {
     const deps = setup();
     app = await buildServer({ loggerOptions: { level: "silent" }, auth: deps.auth });
     const start = await app.inject({ method: "GET", url: "/api/v1/auth/discord" });
@@ -96,6 +99,8 @@ describe("OAuth and session routes", () => {
     const stateCookie = cookiePair(start.headers["set-cookie"], "vreeo_oauth_state");
     expect(state).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(stateCookie).toBe(`vreeo_oauth_state=${state}`);
+    expect(location.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(location.searchParams.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
 
     const callback = await app.inject({
       method: "GET",

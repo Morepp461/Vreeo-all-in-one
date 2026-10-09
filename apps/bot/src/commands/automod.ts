@@ -7,9 +7,9 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 import { prisma } from '@vreeo/database/client';
-import type { VreeoCommand } from '../types.js';
-import { syncGuild } from '../../services/guild-sync.js';
-import { replyFailure } from './shared.js';
+import type { VreeoCommand } from './types.js';
+import { syncGuild } from '../services/guild-sync.js';
+import { replyFailure } from './moderation/shared.js';
 
 function getDiscordRuleId(config: unknown): string | null {
   if (!config || typeof config !== 'object' || Array.isArray(config)) return null;

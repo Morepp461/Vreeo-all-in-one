@@ -2,7 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 import type { DatabaseClient } from "@vreeo/database";
 import { PrismaGuildAccessRepository } from "./prisma-guild-access-repository.js";
 
-const moderator = {
+type GuildFixture = {
+  id: string;
+  discordGuildId: string;
+  name: string;
+  iconUrl: string;
+  ownerDiscordUserId: string;
+  active: boolean;
+  botJoinedAt: Date | null;
+  members: Array<{ roles: Array<{ discordRoleId: string }> }>;
+  roles: Array<{ discordRoleId: string; permissions: string }>;
+};
+
+const moderator: GuildFixture = {
   id: "internal-guild-1",
   discordGuildId: "222222222222222222",
   name: "Example Guild",
@@ -13,7 +25,7 @@ const moderator = {
   members: [{ roles: [{ discordRoleId: "role-moderator" }] }],
   roles: [{ discordRoleId: "role-moderator", permissions: "32" }],
 };
-function repositoryFor(guild: typeof moderator | null) {
+function repositoryFor(guild: GuildFixture | null) {
   const prisma = {
     guild: {
       findUnique: vi.fn(async () => guild),

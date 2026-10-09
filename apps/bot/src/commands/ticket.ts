@@ -4,8 +4,6 @@ import type { VreeoCommand } from './types.js';
 import { syncGuild } from '../services/guild-sync.js';
 import { replyFailure } from './moderation/shared.js';
 
-class ActiveTicketLimitError extends Error {}
-
 type TicketSettings = {
   ticketCategoryId: string | null;
   staffRoleId: string | null;
@@ -61,8 +59,8 @@ async function writeTicketAudit(input: {
       action: input.action,
       resourceType: 'ticket',
       resourceId: input.ticketId,
-      ...(input.oldValue ? { oldValue: input.oldValue } : {}),
-      ...(input.newValue ? { newValue: input.newValue } : {}),
+      ...(input.oldValue ? { oldValue: JSON.parse(JSON.stringify(input.oldValue)) } : {}),
+      ...(input.newValue ? { newValue: JSON.parse(JSON.stringify(input.newValue)) } : {}),
       source: 'discord_bot',
     },
   });
@@ -148,7 +146,7 @@ export const ticketCommand: VreeoCommand = {
       }
 
       const category = interaction.options.getChannel('category', true);
-      if (category.type !== ChannelType.GuildCategory || category.guildId !== guild.id) {
+      if (category.type !== ChannelType.GuildCategory) {
         return replyFailure(interaction, 'Choose a category from this server.');
       }
       const staffRole = interaction.options.getRole('staff_role');
@@ -249,15 +247,7 @@ export const ticketCommand: VreeoCommand = {
       try {
         ticket = await prisma.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${guildRecord.id}))`;
-          const activeTicketCount = await tx.ticket.count({
-            where: {
-              guildId: guildRecord.id,
-              openerDiscordUserId: interaction.user.id,
-              status: { in: ['creating', 'open', 'claimed'] },
-            },
-          });
-          if (activeTicketCount >= 3) throw new ActiveTicketLimitError();
-          const latest = await tx.ticket.aggregate({
+const latest = await tx.ticket.aggregate({
             where: { guildId: guildRecord.id },
             _max: { ticketNumber: true },
           });

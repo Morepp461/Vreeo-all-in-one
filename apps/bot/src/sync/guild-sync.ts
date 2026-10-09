@@ -160,10 +160,13 @@ export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseCl
   // GuildMembers is a privileged Discord intent. If it is unavailable, the caller logs the failure and owner access remains available.
   const members = [...(await guild.members.fetch()).values()];
   const memberIds = members.map((member) => member.id);
-  const knownUsers = memberIds.length === 0 ? [] : await database.user.findMany({
-    where: { discordUserId: { in: memberIds } },
-    select: { id: true, discordUserId: true },
-  });
+  const knownUsers: Array<{ id: string; discordUserId: string }> = [];
+  for (let offset = 0; offset < memberIds.length; offset += 500) {
+    knownUsers.push(...await database.user.findMany({
+      where: { discordUserId: { in: memberIds.slice(offset, offset + 500) } },
+      select: { id: true, discordUserId: true },
+    }));
+  }
   const userIds = new Map(knownUsers.map((user) => [user.discordUserId, user.id]));
   await inBatches(members, MEMBER_BATCH_SIZE, async (member) => {
     await withMemberLock(`${guild.id}:${member.id}`, () =>
@@ -177,16 +180,18 @@ export async function syncGuildMemberSnapshot(guild: Guild, database: DatabaseCl
   const currentIds = new Set(memberIds);
   const departed = existingMembers.filter((member) => !currentIds.has(member.discordUserId));
   if (departed.length > 0) {
-    const departedIds = departed.map((member) => member.id);
     const now = new Date();
-    await database.guildMember.updateMany({
-      where: { id: { in: departedIds }, isMember: true },
-      data: { isMember: false, leftAt: now },
-    });
-    await database.guildMemberRole.updateMany({
-      where: { memberId: { in: departedIds }, removedAt: null },
-      data: { removedAt: now },
-    });
+    for (let offset = 0; offset < departed.length; offset += 500) {
+      const departedIds = departed.slice(offset, offset + 500).map((member) => member.id);
+      await database.guildMember.updateMany({
+        where: { id: { in: departedIds }, isMember: true },
+        data: { isMember: false, leftAt: now },
+      });
+      await database.guildMemberRole.updateMany({
+        where: { memberId: { in: departedIds }, removedAt: null },
+        data: { removedAt: now },
+      });
+    }
   }
   return members.length;
 }

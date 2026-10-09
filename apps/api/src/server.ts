@@ -99,6 +99,27 @@ const entrypoint = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).hre
 
 if (entrypoint === import.meta.url) {
   const app = buildServer();
+  let shuttingDown = false;
+
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    app.log.info({ signal }, 'Shutting down API server');
+    try {
+      await app.close();
+      await prisma.$disconnect();
+    } catch (error) {
+      app.log.error(
+        { errorName: error instanceof Error ? error.name : 'unknown' },
+        'API shutdown failed',
+      );
+      process.exitCode = 1;
+    }
+  };
+
+  process.once('SIGINT', () => void shutdown('SIGINT'));
+  process.once('SIGTERM', () => void shutdown('SIGTERM'));
+
   app.listen({ host: env.API_HOST, port: env.API_PORT }).catch((error: unknown) => {
     app.log.error(
       { errorName: error instanceof Error ? error.name : 'unknown' },

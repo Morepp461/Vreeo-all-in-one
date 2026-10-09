@@ -41,7 +41,8 @@ describe("Discord service boundary", () => {
     expect(calls).toHaveLength(3);
     expect(snapshot.roleIds).toEqual(["222222222222222222", "333333333333333333"]);
     expect(snapshot.permissionBits).toBe(3072n);
-    expect(hasLiveDiscordPermission(snapshot, 1024n)).toBe(false);
+    expect(hasLiveDiscordPermission(snapshot, 1024n)).toBe(true);
+    expect(hasLiveDiscordPermission(snapshot, 4096n)).toBe(false);
     expect(hasLiveDiscordPermission(snapshot, 2048n)).toBe(true);
     expect(hasLiveDiscordPermission(snapshot, 3072n)).toBe(true);
   });

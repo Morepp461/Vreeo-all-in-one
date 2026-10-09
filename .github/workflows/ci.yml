@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   quality:
@@ -40,19 +40,7 @@ jobs:
         with:
           node-version: 22
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-      - name: Format and commit bootstrap changes
-        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/feature/bootstrap'
-        run: |
-          pnpm exec prettier --write .
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add -u
-            git add pnpm-lock.yaml
-            git commit -m "chore: format bootstrap implementation and sync lockfile"
-            git push origin HEAD:feature/bootstrap
-          fi
+        run: pnpm install --frozen-lockfile
       - name: Validate database schema and generate Prisma client
         env:
           DATABASE_URL: postgresql://vreeo:vreeo_dev_only@localhost:5432/vreeo?schema=public

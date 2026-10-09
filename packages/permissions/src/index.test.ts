@@ -73,7 +73,6 @@ describe("permission evaluation", () => {
   it("requires Discord capabilities and bot hierarchy when supplied", () => {
     expect(evaluatePermission({
       authenticated: true, requestedGuildId: actor.guildId, guildAccess: true, actor, permission, overrides: [], roleGrants: [], defaultPermissions: [permission],
-      roleGrants: [],
       discord: { requiredPermissions: ["BanMembers"], grantedPermissions: [] },
     })).toEqual({ allowed: false, reasons: ["MISSING_DISCORD_PERMISSION"] });
     expect(evaluatePermission({

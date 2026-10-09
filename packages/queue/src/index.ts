@@ -41,9 +41,9 @@ export function createQueue<TData = unknown>(
   name: string,
   connection: RedisConnection,
   options: CreateQueueOptions = {},
-): Queue<TData> {
+): Queue<TData, unknown, string> {
   assertQueueName(name);
-  return new Queue<TData>(name, {
+  return new Queue<TData, unknown, string>(name, {
     connection,
     prefix: QUEUE_PREFIX,
     defaultJobOptions: defaultQueueJobOptions(options.defaultJobOptions),
@@ -60,7 +60,7 @@ export function createIdempotentJobId(queueName: string, idempotencyKey: string)
 }
 
 export async function addIdempotentJob<TData>(
-  queue: Queue<TData>,
+  queue: Queue<TData, unknown, string>,
   jobName: string,
   data: TData,
   idempotencyKey: string,
@@ -74,7 +74,7 @@ export async function addIdempotentJob<TData>(
 
 export interface QueueWorkerHandle<TData = unknown, TResult = unknown> {
   worker: Worker<TData, TResult, string>;
-  deadLetterQueue: Queue<DeadLetterJobData>;
+  deadLetterQueue: Queue<DeadLetterJobData, unknown, string>;
   close(): Promise<void>;
 }
 

@@ -22,7 +22,9 @@ describe('OAuth token encryption', () => {
   it('rejects modified ciphertext and wrong keys', () => {
     const encrypted = encryptOAuthToken('secret-token', secret);
     const parts = encrypted.split('.');
-    parts[3] = `${parts[3].slice(0, -1)}${parts[3].endsWith('A') ? 'B' : 'A'}`;
+    const ciphertext = parts[3];
+    if (!ciphertext) throw new Error('Ciphertext segment missing from test fixture.');
+    parts[3] = `${ciphertext.slice(0, -1)}${ciphertext.endsWith('A') ? 'B' : 'A'}`;
     expect(() => decryptOAuthToken(parts.join('.'), secret)).toThrow();
     expect(() => decryptOAuthToken(encrypted, 'a-different-key-that-is-long-enough')).toThrow();
   });

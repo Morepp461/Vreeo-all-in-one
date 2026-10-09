@@ -92,6 +92,14 @@ describe("Moderation Warn domain service", () => {
     expect(await database.moderationCase.count({ where: { guildId } })).toBe(3);
   });
 
+  it("rejects inactive guilds and a moderator identity that does not match the authenticated user", async () => {
+    await database.guild.update({ where: { id: guildId }, data: { active: false, botJoinedAt: null } });
+    await expect(createWarning(database, input())).rejects.toBeInstanceOf(WarningValidationError);
+    await database.guild.update({ where: { id: guildId }, data: { active: true, botJoinedAt: new Date() } });
+    await expect(createWarning(database, input({ actorUserId: randomUUID() }))).rejects.toBeInstanceOf(WarningValidationError);
+    expect(await database.moderationCase.count({ where: { guildId } })).toBe(0);
+  });
+
   it("rejects invalid IDs, empty reasons, and non-future expiry before writing", async () => {
     await expect(createWarning(database, input({ targetDiscordUserId: "not-a-snowflake" }))).rejects.toBeInstanceOf(WarningValidationError);
     await expect(createWarning(database, input({ reason: "   " }))).rejects.toBeInstanceOf(WarningValidationError);

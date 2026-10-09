@@ -89,10 +89,10 @@ export class DiscordOAuthHttpProvider implements DiscordOAuthProvider {
 
 function isDiscordOAuthGuild(value: unknown): value is DiscordOAuthGuild {
   if (!isRecord(value)) return false;
-  return typeof value.id === "string" && /^\\d{1,32}$/.test(value.id) &&
+  return typeof value.id === "string" && /^\d{1,32}$/.test(value.id) &&
     typeof value.name === "string" && value.name.length > 0 && value.name.length <= 100 &&
     (typeof value.icon === "string" && /^[A-Za-z0-9_]{1,128}$/.test(value.icon) || value.icon === null) &&
     typeof value.owner === "boolean" &&
-    typeof value.permissions === "string" && /^\\d{1,32}$/.test(value.permissions);
+    typeof value.permissions === "string" && /^\d{1,32}$/.test(value.permissions);
 }
 

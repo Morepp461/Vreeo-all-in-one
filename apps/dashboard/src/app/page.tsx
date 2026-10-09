@@ -19,12 +19,14 @@ type DashboardGuild = {
   owner: boolean;
   botInstalled: boolean;
 };
-const apiBase = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1').replace(
-  /\/$/,
-  '',
-);
+const configuredApiBase = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+const apiBase = (
+  configuredApiBase ||
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:4000/api/v1' : '')
+).replace(/\/$/, '');
 
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!apiBase) throw new Error('NEXT_PUBLIC_API_BASE_URL must be configured for this deployment.');
   const response = await fetch(`${apiBase}${path}`, {
     ...init,
     credentials: 'include',
@@ -130,6 +132,10 @@ export default function HomePage() {
   };
 
   const startLogin = () => {
+    if (!apiBase) {
+      setError('NEXT_PUBLIC_API_BASE_URL must be configured for this deployment.');
+      return;
+    }
     window.location.assign(`${apiBase}/auth/discord`);
   };
 

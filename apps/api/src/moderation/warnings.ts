@@ -47,6 +47,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 function validateInput(input: CreateWarningInput, now: Date): { reason: string; idempotencyKey: string; expiresAt: Date | null } {
+  if (!["api", "bot", "automod", "system_worker"].includes(input.source)) throw new WarningValidationError("Warning source is invalid.");
   if (!/^\d{1,32}$/.test(input.targetDiscordUserId)) throw new WarningValidationError("Target Discord user ID is invalid.");
   if (!/^\d{1,32}$/.test(input.moderatorDiscordUserId)) throw new WarningValidationError("Moderator Discord user ID is invalid.");
   const reason = input.reason.trim();

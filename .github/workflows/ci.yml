@@ -15,6 +15,22 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://vreeo:vreeo_ci_password@localhost:5432/vreeo_ci?schema=public
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: vreeo
+          POSTGRES_PASSWORD: vreeo_ci_password
+          POSTGRES_DB: vreeo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U vreeo -d vreeo_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,11 +48,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Validate Prisma schema
+        run: pnpm --filter @vreeo/database validate
+
+      - name: Build
+        run: pnpm build
+
+      - name: Apply database migrations
+        run: pnpm --filter @vreeo/database migrate:deploy
+
+      - name: Seed baseline plans
+        run: pnpm --filter @vreeo/database seed
+
+      - name: Verify seed is idempotent
+        run: pnpm --filter @vreeo/database seed
+
+      - name: Check database schema drift
+        run: pnpm --filter @vreeo/database exec prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-url "$DATABASE_URL" --exit-code
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test
         run: pnpm test
-
-      - name: Build
-        run: pnpm build

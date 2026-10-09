@@ -8,11 +8,11 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "pnpm --filter @vreeo/config --filter @vreeo/logger build && pnpm --parallel --filter @vreeo/api --filter @vreeo/bot dev",
+    "dev": "pnpm --filter @vreeo/config --filter @vreeo/logger --filter @vreeo/database build && pnpm --parallel --filter @vreeo/api --filter @vreeo/bot dev",
     "build": "pnpm -r --if-present build",
-    "typecheck": "pnpm --filter @vreeo/config --filter @vreeo/logger build && pnpm -r --if-present typecheck",
+    "typecheck": "pnpm --filter @vreeo/config --filter @vreeo/logger --filter @vreeo/database build && pnpm -r --if-present typecheck",
     "lint": "pnpm -r --if-present lint",
-    "test": "pnpm --filter @vreeo/config --filter @vreeo/logger build && pnpm -r --if-present test",
+    "test": "pnpm --filter @vreeo/config --filter @vreeo/logger --filter @vreeo/database build && pnpm -r --if-present test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "infra:up": "docker compose up -d",
@@ -21,7 +21,12 @@
     "clean": "pnpm -r --if-present clean"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "esbuild",
+      "prisma"
+    ]
   },
   "devDependencies": {
     "@types/node": "^22.15.30",

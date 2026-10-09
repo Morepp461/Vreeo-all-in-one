@@ -590,7 +590,10 @@ export const ticketCommand: VreeoCommand = {
           data: { status: 'closing', updatedAt: new Date() },
         });
         if (recovery.count !== 1) {
-          return ticketFailure(interaction, 'Another ticket action is already in progress. Try again.');
+          return ticketFailure(
+            interaction,
+            'Another ticket action is already in progress. Try again.',
+          );
         }
       } else {
         const transition = await prisma.ticket.updateMany({
@@ -721,7 +724,10 @@ export const ticketCommand: VreeoCommand = {
           data: { status: 'reopening', updatedAt: new Date() },
         });
         if (recovery.count !== 1) {
-          return ticketFailure(interaction, 'Another ticket action is already in progress. Try again.');
+          return ticketFailure(
+            interaction,
+            'Another ticket action is already in progress. Try again.',
+          );
         }
       } else {
         const transition = await prisma.ticket.updateMany({

@@ -1,6 +1,10 @@
-import type { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
+import type {
+  ChatInputCommandInteraction,
+  SlashCommandBuilder,
+  SlashCommandOptionsOnlyBuilder,
+} from 'discord.js';
 
 export interface VreeoCommand {
-  data: SlashCommandBuilder;
-  execute(interaction: ChatInputCommandInteraction): Promise<void>;
+  data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder;
+  execute(interaction: ChatInputCommandInteraction): Promise<unknown>;
 }

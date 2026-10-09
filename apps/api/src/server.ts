@@ -78,7 +78,7 @@ export function buildServer() {
 
   app.get('/ready', async (request, reply) => {
     try {
-      await prisma.$queryRaw\`SELECT 1\`;
+      await prisma.$queryRaw`SELECT 1`;
       return { status: 'ready', dependencies: { database: 'ok' } };
     } catch (error) {
       request.log.error(

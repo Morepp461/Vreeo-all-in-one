@@ -1,0 +1,22 @@
+{
+  "name": "vreeo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "prettier --check .prettierrc.json",
+    "format": "prettier --write .",
+    "clean": "turbo run clean"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  }
+}

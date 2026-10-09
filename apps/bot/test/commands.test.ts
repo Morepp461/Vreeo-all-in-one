@@ -24,7 +24,6 @@ describe('slash command registry', () => {
       'ban',
       'case',
       'warnings',
-      'ticket',
     ]);
   });
 

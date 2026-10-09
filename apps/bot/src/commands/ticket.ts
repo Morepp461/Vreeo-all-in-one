@@ -4,6 +4,8 @@ import type { VreeoCommand } from './types.js';
 import { syncGuild } from '../services/guild-sync.js';
 import { replyFailure } from './moderation/shared.js';
 
+class ActiveTicketLimitError extends Error {}
+
 type TicketSettings = {
   ticketCategoryId: string | null;
   staffRoleId: string | null;
@@ -243,6 +245,14 @@ export const ticketCommand: VreeoCommand = {
       try {
         ticket = await prisma.$transaction(async (tx) => {
           await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${guildRecord.id}))`;
+          const activeTicketCount = await tx.ticket.count({
+            where: {
+              guildId: guildRecord.id,
+              openerDiscordUserId: interaction.user.id,
+              status: { in: ['creating', 'open', 'claimed'] },
+            },
+          });
+          if (activeTicketCount >= 3) throw new ActiveTicketLimitError();
           const latest = await tx.ticket.aggregate({
             where: { guildId: guildRecord.id },
             _max: { ticketNumber: true },
@@ -355,6 +365,13 @@ export const ticketCommand: VreeoCommand = {
         });
         await interaction.editReply(`Your ticket has been opened: <#${channel.id}>`);
       } catch (error) {
+        if (error instanceof ActiveTicketLimitError) {
+          await replyFailure(
+            interaction,
+            'You already have 3 active tickets in this server. Close one before opening another.',
+          );
+          return;
+        }
         if (channelId) {
           await guild.channels
             .delete(channelId, 'VREEO ticket database persistence failed')

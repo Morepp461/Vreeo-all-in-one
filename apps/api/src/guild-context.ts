@@ -1,10 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { resolveSession } from "./auth/routes.js";
-import type { AuthRouteDependencies, AccessibleGuildRecord } from "./auth/types.js";
+import type { AuthRouteDependencies, GuildContextRecord } from "./auth/types.js";
 
 export interface VreeoGuildContext {
   userId: string;
-  guild: AccessibleGuildRecord;
+  guild: GuildContextRecord;
 }
 
 declare module "fastify" {
@@ -45,6 +45,6 @@ export async function registerGuildContextRoutes(app: FastifyInstance, dependenc
     const context = request.vreeoGuildContext;
     if (!context) return sendContextError(reply, request, 500, "INTERNAL_ERROR", "Guild context was not initialized.");
     reply.header("Cache-Control", "no-store");
-    return { data: { guildId: context.guild.id, name: context.guild.name, iconUrl: context.guild.iconUrl } };
+    return { data: { guildId: context.guild.discordGuildId, name: context.guild.name, iconUrl: context.guild.iconUrl } };
   });
 }

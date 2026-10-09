@@ -27,7 +27,9 @@ export async function handleTicketPanelButton(interaction: ButtonInteraction): P
       select: { id: true, name: true },
     });
     if (!panel) {
-      await interaction.editReply('This ticket panel is no longer active. Ask a server administrator to publish a new one.');
+      await interaction.editReply(
+        'This ticket panel is no longer active. Ask a server administrator to publish a new one.',
+      );
       return;
     }
 
@@ -39,16 +41,22 @@ export async function handleTicketPanelButton(interaction: ButtonInteraction): P
 
     const settings = await loadTicketSettings(guildRecord.id);
     if (!settings.enabled || !settings.ticketCategoryId) {
-      await interaction.editReply('The ticket system is not configured. Ask a server administrator to run /ticket setup.');
+      await interaction.editReply(
+        'The ticket system is not configured. Ask a server administrator to run /ticket setup.',
+      );
       return;
     }
     const category = await guild.channels.fetch(settings.ticketCategoryId).catch(() => null);
     if (!category || category.type !== ChannelType.GuildCategory || category.guildId !== guild.id) {
-      await interaction.editReply('The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.');
+      await interaction.editReply(
+        'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.',
+      );
       return;
     }
     if (settings.staffRoleId && !guild.roles.cache.has(settings.staffRoleId)) {
-      await interaction.editReply('The configured ticket staff role no longer exists. Ask an administrator to run /ticket setup again.');
+      await interaction.editReply(
+        'The configured ticket staff role no longer exists. Ask an administrator to run /ticket setup again.',
+      );
       return;
     }
 
@@ -63,7 +71,9 @@ export async function handleTicketPanelButton(interaction: ButtonInteraction): P
       botUserId: botMember.id,
     });
     if (result.status === 'failed') {
-      await interaction.editReply('This ticket request already failed. Please use the panel again.');
+      await interaction.editReply(
+        'This ticket request already failed. Please use the panel again.',
+      );
       return;
     }
     if (result.channelId) {
@@ -74,12 +84,16 @@ export async function handleTicketPanelButton(interaction: ButtonInteraction): P
       );
       return;
     }
-    await interaction.editReply('Your ticket request is already being processed. Please wait a moment.');
+    await interaction.editReply(
+      'Your ticket request is already being processed. Please wait a moment.',
+    );
   } catch (error) {
     console.error(
       'Ticket panel interaction failed:',
       error instanceof Error ? error.message : 'Unknown error',
     );
-    await interaction.editReply('VREEO could not open a ticket from this panel. Please try again or contact a server administrator.');
+    await interaction.editReply(
+      'VREEO could not open a ticket from this panel. Please try again or contact a server administrator.',
+    );
   }
 }

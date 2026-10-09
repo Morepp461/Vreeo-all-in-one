@@ -246,11 +246,17 @@ export const ticketCommand: VreeoCommand = {
 
     if (subcommand === 'panel') {
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        return ticketFailure(interaction, 'You need the Manage Server permission to publish ticket panels.');
+        return ticketFailure(
+          interaction,
+          'You need the Manage Server permission to publish ticket panels.',
+        );
       }
       const botMember = guild.members.me;
       if (!botMember?.permissions.has(PermissionFlagsBits.ManageChannels)) {
-        return ticketFailure(interaction, 'VREEO needs the Manage Channels permission to publish ticket panels.');
+        return ticketFailure(
+          interaction,
+          'VREEO needs the Manage Channels permission to publish ticket panels.',
+        );
       }
 
       const name = interaction.options.getString('name', true).trim();
@@ -276,10 +282,7 @@ export const ticketCommand: VreeoCommand = {
 
       const ticketSettings = await loadTicketSettings(guildRecord.id);
       if (!ticketSettings.enabled || !ticketSettings.ticketCategoryId) {
-        return ticketFailure(
-          interaction,
-          'Run /ticket setup before publishing a ticket panel.',
-        );
+        return ticketFailure(interaction, 'Run /ticket setup before publishing a ticket panel.');
       }
       const ticketCategory = await guild.channels
         .fetch(ticketSettings.ticketCategoryId)

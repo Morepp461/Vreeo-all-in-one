@@ -1,9 +1,4 @@
-import {
-  ChannelType,
-  EmbedBuilder,
-  PermissionFlagsBits,
-  type Guild,
-} from 'discord.js';
+import { ChannelType, EmbedBuilder, PermissionFlagsBits, type Guild } from 'discord.js';
 import { prisma } from '@vreeo/database/client';
 
 export type TicketSettings = {
@@ -39,8 +34,7 @@ export function readTicketSettings(configValue: unknown, enabled = false): Ticke
     enabled,
     ticketCategoryId:
       typeof category === 'string' && /^\d{17,20}$/.test(category) ? category : null,
-    staffRoleId:
-      typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
+    staffRoleId: typeof staffRole === 'string' && /^\d{17,20}$/.test(staffRole) ? staffRole : null,
   };
 }
 
@@ -136,14 +130,16 @@ export async function createTicketChannel(input: {
         ],
       },
       ...(input.staffRoleId
-        ? [{
-            id: input.staffRoleId,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-            ],
-          }]
+        ? [
+            {
+              id: input.staffRoleId,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory,
+              ],
+            },
+          ]
         : []),
     ];
 
@@ -151,7 +147,11 @@ export async function createTicketChannel(input: {
       name: `ticket-${ticket.ticketNumber.toString().padStart(4, '0')}`,
       type: ChannelType.GuildText,
       parent: input.categoryId,
-      topic: `VREEO ticket #${ticket.ticketNumber.toString()} • Opener: ${input.userId} • Subject: ${input.subject}`.slice(0, 1024),
+      topic:
+        `VREEO ticket #${ticket.ticketNumber.toString()} • Opener: ${input.userId} • Subject: ${input.subject}`.slice(
+          0,
+          1024,
+        ),
       permissionOverwrites: overwrites,
       reason: `VREEO ticket #${ticket.ticketNumber.toString()} opened by ${input.userId}`,
     });

@@ -1,6 +1,6 @@
 import { PermissionFlagsBits, SlashCommandBuilder } from 'discord.js';
 import type { VreeoCommand } from '../types.js';
-import { auditReason, createModerationCase, finalizeModerationCase, parseReason, replyFailure } from './shared.js';
+import { createModerationCase, finalizeModerationCase, invokerCanModerateTarget, parseReason, replyFailure } from './shared.js';
 
 export const warnCommand: VreeoCommand = {
   data: new SlashCommandBuilder()
@@ -13,7 +13,10 @@ export const warnCommand: VreeoCommand = {
     if (!interaction.guild) return replyFailure(interaction, 'This command only works in a server.');
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ModerateMembers)) return replyFailure(interaction, 'You need the Moderate Members permission.');
     const target = interaction.options.getUser('user', true);
-    if (target.id === interaction.user.id || target.bot) return replyFailure(interaction, 'You cannot warn yourself or a bot account.');
+    if (target.id === interaction.user.id) return replyFailure(interaction, 'You cannot warn yourself.');
+    const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+    if (!member) return replyFailure(interaction, 'That user is not a member of this server.');
+    if (!(await invokerCanModerateTarget(interaction, member))) return replyFailure(interaction, 'Your highest role must be above the target member’s highest role.');
     const reason = parseReason(interaction.options.getString('reason'));
     await interaction.deferReply({ ephemeral: true });
     let record;

@@ -154,11 +154,15 @@ export interface ApiErrorEnvelope {
   };
 }
 
-export interface DomainEvent<TPayload = unknown> {
+export interface DomainEvent<TMetadata extends Record<string, unknown> = Record<string, unknown>> {
   eventId: string;
-  eventName: string;
-  occurredAt: string;
+  event: string;
+  timestamp: string;
+  /** Internal UUID when the corresponding guild record is available. */
   guildId?: string;
-  actor?: Pick<ActorContext, "actorType" | "userId" | "discordUserId">;
-  payload: TPayload;
+  /** Internal UUID when the corresponding user record is available. */
+  userId?: string;
+  discordGuildId?: string;
+  discordUserId?: string;
+  metadata: TMetadata;
 }

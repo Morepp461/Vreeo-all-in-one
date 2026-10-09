@@ -30,7 +30,7 @@ apps/
   admin/        Internal admin application (not implemented yet)
 packages/
   config/       Shared environment validation
-  database/     Prisma schema, core migration, seed, and client boundary
+  database/     Prisma schema, core/MVP migrations, seed, and client boundary
   discord/      Shared Discord adapters (not implemented yet)
   entitlements/ Feature availability and plan rules (not implemented yet)
   events/       Internal event contracts/bus (not implemented yet)

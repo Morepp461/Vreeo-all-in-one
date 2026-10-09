@@ -59,7 +59,7 @@ export async function loadPermissionPolicy(
 
 function safeLimit(value: bigint | null): number | null {
   if (value === null) return null;
-  if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < BigInt(Number.MIN_SAFE_INTEGER)) {
+  if (value > BigInt(Number.MAX_SAFE_INTEGER) || value < 0n) {
     throw new Error("Stored entitlement limit exceeds the safe integer range");
   }
   return Number(value);

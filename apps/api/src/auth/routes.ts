@@ -28,7 +28,7 @@ function hasExpectedOrigin(request: FastifyRequest, config: ApiConfig): boolean 
   if (typeof origin !== "string") return false;
   try { return new URL(origin).origin === new URL(config.appBaseUrl).origin; } catch { return false; }
 }
-async function resolveSession(request: FastifyRequest, dependencies: AuthRouteDependencies): Promise<AuthSessionWithUser | null> {
+export async function resolveSession(request: FastifyRequest, dependencies: AuthRouteDependencies): Promise<AuthSessionWithUser | null> {
   const raw = request.cookies[dependencies.config.sessionCookieName];
   if (!raw || raw.length > 256) return null;
   const now = new Date();

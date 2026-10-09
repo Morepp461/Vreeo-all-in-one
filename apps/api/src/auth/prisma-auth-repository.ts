@@ -78,6 +78,17 @@ export class PrismaAuthRepository implements AuthRepository {
     const sessions = await this.prisma.session.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: Math.min(Math.max(limit, 1), 100) });
     return sessions.map(toSessionRecord);
   }
+  async getAccessibleGuild(userId: string, discordGuildId: string): Promise<AccessibleGuildRecord | null> {
+    const memberships = await this.prisma.guildMember.findMany({
+      where: { userId, isMember: true, guild: { is: { discordGuildId, active: true, botJoinedAt: { not: null } } } },
+      include: { guild: { select: { discordGuildId: true, name: true, iconUrl: true, active: true, botJoinedAt: true } } },
+    });
+    const membership = memberships.find((item) => {
+      const metadata = typeof item.metadata === "object" && item.metadata !== null && !Array.isArray(item.metadata) ? item.metadata as Record<string, unknown> : {};
+      return metadata.canManageGuild === true;
+    });
+    return membership ? { id: membership.guild.discordGuildId, name: membership.guild.name, iconUrl: membership.guild.iconUrl } : null;
+  }
   async listAccessibleGuilds(userId: string): Promise<AccessibleGuildRecord[]> {
     const memberships = await this.prisma.guildMember.findMany({
       where: { userId, isMember: true },

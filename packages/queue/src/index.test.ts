@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createLogger } from "@vreeo/logger";
 import { buildRedisKey, closeRedisConnection, createRedisConnection } from "@vreeo/redis";
-import { addIdempotentJob, createIdempotentJobId, createQueue, createQueueWorker, defaultQueueJobOptions, DEFAULT_BACKOFF_DELAY_MS, DEFAULT_JOB_ATTEMPTS } from "./index.js";
+import { addIdempotentJob, buildDeadLetterQueueName, createIdempotentJobId, createQueue, createQueueWorker, defaultQueueJobOptions, DEFAULT_BACKOFF_DELAY_MS, DEFAULT_JOB_ATTEMPTS } from "./index.js";
 
 const redis = createRedisConnection({
   url: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
@@ -72,15 +72,10 @@ describe("queue policy", () => {
     }
   });
 
-  it("creates a valid DLQ name for the longest accepted worker queue name", async () => {
+  it("creates a valid DLQ name for the longest accepted worker queue name", () => {
     const queueName = `q${"x".repeat(94)}`;
-    const handle = createQueueWorker(queueName, redis, async () => undefined, { concurrency: 1 });
-    try {
-      expect(handle.deadLetterQueue.name).toMatch(/^dlq-[a-f0-9]{40}$/);
-    } finally {
-      await handle.close();
-      await handle.deadLetterQueue.obliterate({ force: true });
-    }
+    expect(buildDeadLetterQueueName(queueName)).toMatch(/^dlq-[a-f0-9]{40}$/);
+    expect(buildDeadLetterQueueName("moderation-warn")).toBe("moderation-warn-dlq");
   });
 
   it("retries failed work and records a payload-free dead-letter reference", async () => {

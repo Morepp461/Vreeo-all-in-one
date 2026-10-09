@@ -41,6 +41,11 @@ describe("environment configuration", () => {
     expect(() => loadBotConfig({ NODE_ENV: "production", DATABASE_URL: localApiEnvironment.DATABASE_URL, DISCORD_TOKEN: "test-token" })).not.toThrow();
   });
 
+  it("requires Redis for production bot cooldowns", () => {
+    expect(loadBotConfig({ DISCORD_TOKEN: "test-token" }).redisUrl).toBe("redis://127.0.0.1:6379");
+    expect(() => loadBotConfig({ NODE_ENV: "production", DATABASE_URL: localApiEnvironment.DATABASE_URL, DISCORD_TOKEN: "test-token" })).toThrow(/REDIS_URL/);
+  });
+
   it("requires a non-empty bot token", () => {
     expect(() => loadBotConfig({ DISCORD_TOKEN: "" })).toThrow(/DISCORD_TOKEN/);
   });

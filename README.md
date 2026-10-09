@@ -31,6 +31,8 @@ apps/
 packages/
   config/       Shared environment validation
   database/     Prisma schema, core/MVP migrations, seed, and client boundary
+  redis/        Shared Redis connection, cache, cooldown, and lock primitives
+  storage/      Provider-neutral object-storage contract
   discord/      Shared Discord adapters (not implemented yet)
   entitlements/ Feature availability and plan rules (not implemented yet)
   events/       Internal event contracts/bus (not implemented yet)

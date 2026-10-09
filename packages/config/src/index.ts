@@ -7,6 +7,7 @@ const baseSchema = z.object({
 const apiSchema = baseSchema.extend({
   API_HOST: z.string().trim().min(1).default("127.0.0.1"),
   API_PORT: z.coerce.number().int().min(1).max(65_535).default(3001),
+  REDIS_URL: z.string().url().default("redis://127.0.0.1:6379"),
 });
 const botSchema = baseSchema.extend({
   DISCORD_TOKEN: z.string().trim().min(1, "DISCORD_TOKEN is required to run the bot"),
@@ -16,7 +17,7 @@ const botSchema = baseSchema.extend({
 
 type LogLevel = "fatal" | "error" | "warn" | "info" | "debug" | "trace" | "silent";
 type BaseConfig = { nodeEnv: "development" | "test" | "production"; logLevel: LogLevel };
-export type ApiConfig = BaseConfig & { apiHost: string; apiPort: number };
+export type ApiConfig = BaseConfig & { apiHost: string; apiPort: number; redisUrl: string };
 export type BotConfig = BaseConfig & { discordToken: string; discordClientId?: string; discordDevGuildId?: string };
 
 function parse<T extends z.ZodTypeAny>(schema: T, environment: NodeJS.ProcessEnv): z.infer<T> {
@@ -29,7 +30,7 @@ function parse<T extends z.ZodTypeAny>(schema: T, environment: NodeJS.ProcessEnv
 }
 export function loadApiConfig(environment: NodeJS.ProcessEnv = process.env): ApiConfig {
   const value = parse(apiSchema, environment);
-  return { nodeEnv: value.NODE_ENV, logLevel: value.LOG_LEVEL, apiHost: value.API_HOST, apiPort: value.API_PORT };
+  return { nodeEnv: value.NODE_ENV, logLevel: value.LOG_LEVEL, apiHost: value.API_HOST, apiPort: value.API_PORT, redisUrl: value.REDIS_URL };
 }
 export function loadBotConfig(environment: NodeJS.ProcessEnv = process.env): BotConfig {
   const value = parse(botSchema, environment);

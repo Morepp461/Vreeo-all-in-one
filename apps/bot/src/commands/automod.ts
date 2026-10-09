@@ -101,7 +101,7 @@ export const autoModCommand: VreeoCommand = {
         const rules = await prisma.autoModRule.findMany({
           where: { guildId: guildRecord.id },
           orderBy: { createdAt: 'desc' },
-          take: 20,
+          take: 10,
           select: { name: true, ruleType: true, enabled: true, config: true, createdAt: true },
         });
         const embed = new EmbedBuilder()
@@ -118,7 +118,7 @@ export const autoModCommand: VreeoCommand = {
                     const keywords = Array.isArray(config.keywords)
                       ? config.keywords
                           .filter((word): word is string => typeof word === 'string')
-                          .slice(0, 8)
+                          .slice(0, 5)
                           .join(', ')
                       : 'Keyword list unavailable';
                     return `**${rule.name}** · ${rule.enabled ? 'Enabled' : 'Disabled'}\n${keywords}`;
@@ -126,7 +126,7 @@ export const autoModCommand: VreeoCommand = {
                   .join('\n\n')
               : 'No VREEO-managed AutoMod rules have been configured.',
           )
-          .setFooter({ text: 'Showing up to 20 rules managed by VREEO' });
+          .setFooter({ text: 'Showing up to 10 rules managed by VREEO' });
         await interaction.editReply({ embeds: [embed] });
         return;
       }

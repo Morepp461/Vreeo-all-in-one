@@ -27,6 +27,15 @@ describe('API authentication boundary', () => {
     });
   });
 
+  it('requires an authenticated session before returning guild data', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/v1/guilds' });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      error: { code: 'AUTH_REQUIRED' },
+    });
+  });
+
   it('rejects logout requests without a trusted browser origin', async () => {
     const response = await app.inject({ method: 'POST', url: '/api/v1/auth/logout' });
 

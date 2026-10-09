@@ -1,41 +1,37 @@
 # Implementation Status
 
-## Current stage: bot command and event core
+## Current stage: Moderation Warn domain persistence
 
-This branch builds on `feat/shared-domain-packages`. It is not a production release and has not been merged into `main`.
+This is a stacked feature branch based on `feat/bot-command-core`. It is not a production release and has not been merged into `main`.
 
 ### Implemented foundations
 
 - Workspace, CI, PostgreSQL schema/migrations, Redis, BullMQ, and object-storage abstraction.
-- Shared domain types, permission evaluation, entitlement resolution, Discord REST wrapper, and internal event contract.
+- Shared domain types, central permission evaluator, entitlement resolver, Discord REST wrapper, and internal event contract.
 - Discord OAuth2 authorization-code flow with Redis-backed one-time state, state cookie bound to the initiating browser, opaque HttpOnly session cookies, SHA-256 session-token hashes in PostgreSQL, current-user, logout, and session management.
-- Same-origin protection for cookie-authenticated logout/session revocation; OAuth tokens are used only during callback and are not persisted.
-- OAuth callback fetches guild membership with the granted `guilds` scope and filters to owners or users with Discord Administrator/Manage Server permission.
-- Authenticated `GET /api/v1/auth/guilds` returns only manageable guilds with an active bot registry record.
-- Bot syncs guild create/delete and cached guilds to the existing `Guild` model; no schema change was introduced.
-- Reusable tenant-context pre-handler validates the URL guild ID, resolves the HttpOnly session, and checks the user’s server-owned access snapshot before attaching a typed guild context. `GET /api/v1/guilds/:guildId/context` exercises the guard.
-- Prisma policy loaders load guild-scoped role grants and user/role overrides, reject malformed stored permission values, and map persisted entitlement rows/subscription state into the existing pure entitlement resolver contract. Unknown sources and unsafe limits fail closed.
-- Bot command registry validates unique slash command names and cooldowns; slash commands register globally or to `DISCORD_DEV_GUILD_ID`.
-- Interaction router handles slash commands, component interactions, and modals with Redis-backed per-user cooldowns, safe fallback responses, and structured error logs. `/vreeo-health` is the current foundation command.
-- Gateway event router centralizes ready/startup sync, guild create/delete registry updates, and Discord client errors; graceful shutdown closes PostgreSQL and Redis.
-- Production config requires OAuth credentials, HTTPS redirect/origin, and secure session cookies; development may leave OAuth unconfigured.
+- Authenticated guild discovery filters to owners or users with Discord Administrator/Manage Server permissions and intersects results with the bot's active guild registry.
+- Bot synchronizes guild create/delete and cached guilds to PostgreSQL.
+- Tenant-context middleware validates the Discord guild ID, resolves the session, checks the server-owned access snapshot, and keeps the internal UUID separate from the public Discord snowflake.
+- Prisma policy loaders bridge stored role grants/overrides and entitlement rows/subscription state to the existing pure policy evaluators. Unknown entitlement sources, malformed permission rows, and unsafe limits fail closed.
+- Bot command registry, global/development-guild slash command registration, Redis-backed per-user cooldowns, component/modal routers, gateway event router, graceful shutdown, and the `/vreeo-health` foundation command.
+- Moderation Warn domain service writes the moderation case, warning record, audit log, and idempotency response in one PostgreSQL transaction. It serializes case-number allocation by locking the guild row, stores hashes instead of raw idempotency keys, replays matching requests, and rejects key reuse with a different request.
+- Warning service validates target/moderator snowflakes, non-empty reason, future expiry values, active bot-installed guild, and actor identity when an internal user ID is supplied. Idempotency retention expiry is passed by the caller instead of being guessed.
 
-### Still not implemented
+### Important limits
 
-- Tenant-scoped guild-context middleware for all guild-scoped routes.
-- Database-backed permission/profile and entitlement policy loaders.
-- Database-backed permission/profile and entitlement policy loaders.
-- Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
-- OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
+- The warning service is **not yet wired to an API endpoint, Discord `/moderation warn` command, or dashboard**. It is a persistence/domain layer only; callers must complete authorization before invoking it.
+- Guild permissions are a login-time OAuth snapshot. Since OAuth tokens are not persisted in the current schema, permission changes made in Discord after login are not revalidated yet. Do not use this snapshot alone for production-sensitive mutations.
+- The source specs define conceptual default role profiles but not a complete permission matrix. The policy loader therefore requires the caller to supply default permissions; no profile mapping is invented here.
+- Entitlement source precedence must be explicit, and grace access is policy-defined. Those policies are not silently hardcoded. The baseline plan seed currently creates plans but does not yet assign a Free plan entitlement to every guild.
+- Real Discord OAuth and slash-command registration have not been exercised with production credentials.
 
 ### Verification
 
-Infrastructure and shared package gates previously passed. The auth/session branch passed CI on `4f47c84191d742315d155000c26600f46e5b76e6`, including build, typecheck, database migrations/schema drift, seed idempotency, and the auth/session route tests. Live Discord OAuth has not been exercised because no real client credentials are configured.
+GitHub Actions passed on commit `209d45a5adbac3ddc397b59327f5166a6815be84`, including Prisma validation, build, migrations/schema drift, seed idempotency, typecheck, and tests. Database-backed warning tests cover persistence, audit records, idempotent replay/conflict, concurrent retries/case numbering, invalid input, inactive guild rejection, and actor mismatch rejection.
 
 ### Next sequence
 
-1. Build the Moderation Warn domain service with transaction-safe case numbering, idempotency, audit logging, and tests.
-2. Before exposing warning mutations, define default permission profiles and entitlement source precedence, and design permission revalidation without persisting OAuth tokens contrary to the current source design.
-3. Wire warn through bot, API, and dashboard only after those authorization policies are fully enforceable.
-4. Add bot command registry and interaction/event routers.
-5. Implement Moderation Warn end-to-end and expand the remaining MVP features.
+1. Define the live guild/Discord permission revalidation strategy without storing OAuth tokens contrary to the current source design.
+2. Define explicit entitlement precedence and Free-plan provisioning from the source specifications; keep unspecified policy fail-closed.
+3. Wire the warning service to the bot and API only after VREEO permission, Discord permission, entitlement, target/hierarchy, and tenant checks are enforceable.
+4. Build the dashboard moderation history and warning flow, then continue through the remaining MVP backlog.

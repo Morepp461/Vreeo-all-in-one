@@ -32,6 +32,7 @@ describe('slash command registry', () => {
     expect(ticket).toBeDefined();
     expect(ticket?.data.toJSON().options?.map((option) => option.name)).toEqual([
       'setup',
+      'panel',
       'open',
       'claim',
       'close',

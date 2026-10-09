@@ -13,14 +13,11 @@ function avatarUrl(discordUserId: string, avatar: string | null | undefined): st
 export class PrismaAuthRepository implements AuthRepository {
   constructor(private readonly prisma: PrismaClient) {}
   async listAccessibleGuilds(userId: string): Promise<AccessibleGuildRecord[]> {
-    const memberships = await this.prisma.guildMember.findMany({
-      where: {
-        userId,
-        isMember: true,
-        leftAt: null,
-        guild: { is: { active: true } },
-      },
+    const snapshots = await this.prisma.userGuildAccess.findMany({
+      where: { userId, guild: { is: { active: true } } },
       select: {
+        isOwner: true,
+        permissions: true,
         guild: {
           select: {
             id: true,
@@ -33,7 +30,17 @@ export class PrismaAuthRepository implements AuthRepository {
       },
       orderBy: { guild: { name: "asc" } },
     });
-    return memberships.map(({ guild }) => guild);
+    return snapshots.flatMap(({ guild, isOwner, permissions }) => {
+      let permissionBits: bigint;
+      try {
+        if (!/^\\d{1,32}$/.test(permissions)) return [];
+        permissionBits = BigInt(permissions);
+      } catch {
+        return [];
+      }
+      const canManageGuild = isOwner || (permissionBits & (8n | 32n)) !== 0n;
+      return canManageGuild ? [guild] : [];
+    });
   }
 
   async completeLogin(input: CompleteLoginInput): Promise<{ user: AuthUserRecord; session: AuthSessionRecord }> {
@@ -53,11 +60,37 @@ export class PrismaAuthRepository implements AuthRepository {
         },
       });
       if (user.deletedAt) throw new AuthRepositoryError("USER_DEACTIVATED");
+      const linkedAccount = await tx.oAuthAccount.findUnique({
+        where: { provider_providerAccountId: { provider: "discord", providerAccountId: input.identity.id } },
+        select: { userId: true },
+      });
+      if (linkedAccount && linkedAccount.userId !== user.id) {
+        throw new AuthRepositoryError("OAUTH_ACCOUNT_CONFLICT");
+      }
       await tx.oAuthAccount.upsert({
         where: { provider_providerAccountId: { provider: "discord", providerAccountId: input.identity.id } },
         create: { userId: user.id, provider: "discord", providerAccountId: input.identity.id, scopes: input.scopes },
-        update: { userId: user.id, scopes: input.scopes },
+        update: { scopes: input.scopes },
       });
+
+      const guildIds = input.guilds.map((guild) => guild.id);
+      const activeGuilds = guildIds.length === 0 ? [] : await tx.guild.findMany({
+        where: { active: true, discordGuildId: { in: guildIds } },
+        select: { id: true, discordGuildId: true },
+      });
+      await tx.userGuildAccess.deleteMany({ where: { userId: user.id } });
+      const guildsByDiscordId = new Map(input.guilds.map((guild) => [guild.id, guild]));
+      const accessRows = activeGuilds.flatMap((guild) => {
+        const oauthGuild = guildsByDiscordId.get(guild.discordGuildId);
+        return oauthGuild ? [{
+          userId: user.id,
+          guildId: guild.id,
+          permissions: oauthGuild.permissions,
+          isOwner: oauthGuild.owner,
+          lastVerifiedAt: input.now,
+        }] : [];
+      });
+      if (accessRows.length > 0) await tx.userGuildAccess.createMany({ data: accessRows });
       const session = await tx.session.create({
         data: { userId: user.id, sessionHash: input.sessionHash, expiresAt: input.sessionExpiresAt, lastSeenAt: input.now },
       });

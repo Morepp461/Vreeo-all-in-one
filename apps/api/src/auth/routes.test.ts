@@ -31,6 +31,7 @@ class MemoryAuthRepository implements AuthRepository {
   };
   session: AuthSessionRecord | null = null;
   storedHash = "";
+  guildSnapshot: CompleteLoginInput["guilds"] = [];
   revoked = false;
   accessibleGuilds = [{
     id: "internal-guild-1",
@@ -44,6 +45,7 @@ class MemoryAuthRepository implements AuthRepository {
   }
   async completeLogin(input: CompleteLoginInput) {
     this.storedHash = input.sessionHash;
+    this.guildSnapshot = input.guilds;
     this.session = {
       id: "11111111-1111-4111-8111-111111111111", userId: this.user.id,
       createdAt: input.now, expiresAt: input.sessionExpiresAt, revokedAt: null, lastSeenAt: input.now,
@@ -87,6 +89,13 @@ function setup() {
       if (token !== "temporary-token") throw new Error("provider error");
       return { id: "123456789012345678", username: "example", global_name: "Example", locale: "en" };
     },
+    fetchGuilds: async (token) => {
+      if (token !== "temporary-token") throw new Error("provider error");
+      return [
+        { id: "222222222222222222", name: "VREEO Test Guild", icon: null, owner: true, permissions: "8" },
+        { id: "333333333333333333", name: "Read Only Guild", icon: null, owner: false, permissions: "1024" },
+      ];
+    },
   };
   return { stateStore, repository, provider, auth: { config, stateStore, repository, provider } };
 }
@@ -121,6 +130,7 @@ describe("OAuth and session routes", () => {
     expect(callback.headers.location).toBe("http://localhost:3000/");
     const sessionCookie = cookiePair(callback.headers["set-cookie"], "vreeo_session");
     expect(sessionCookie).toMatch(/^vreeo_session=[A-Za-z0-9_-]{43}$/);
+    expect(deps.repository.guildSnapshot).toHaveLength(2);
     expect(callback.headers["set-cookie"]?.toString()).toContain("HttpOnly");
     expect(callback.headers["set-cookie"]?.toString()).toContain("SameSite=Lax");
 

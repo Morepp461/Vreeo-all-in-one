@@ -1,10 +1,10 @@
 import type { DiscordOAuthConfig } from "@vreeo/config";
-import type { DiscordOAuthIdentity, DiscordOAuthProvider, DiscordOAuthToken } from "./types.js";
+import type { DiscordOAuthGuild, DiscordOAuthIdentity, DiscordOAuthProvider, DiscordOAuthToken } from "./types.js";
 const API_BASE = "https://discord.com/api/v10";
 const AUTHORIZE_URL = "https://discord.com/oauth2/authorize";
 const TOKEN_URL = `${API_BASE}/oauth2/token`;
 export class DiscordOAuthProviderError extends Error {
-  constructor(readonly stage: "TOKEN_EXCHANGE" | "IDENTITY_LOOKUP") { super("Discord OAuth request failed."); this.name = "DiscordOAuthProviderError"; }
+  constructor(readonly stage: "TOKEN_EXCHANGE" | "IDENTITY_LOOKUP" | "GUILD_DISCOVERY") { super("Discord OAuth request failed."); this.name = "DiscordOAuthProviderError"; }
 }
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null && !Array.isArray(value); }
 async function parseResponse(response: Response, stage: DiscordOAuthProviderError["stage"]): Promise<Record<string, unknown>> {
@@ -45,6 +45,28 @@ export class DiscordOAuthHttpProvider implements DiscordOAuthProvider {
     if (typeof value.access_token !== "string" || typeof value.scope !== "string") throw new DiscordOAuthProviderError("TOKEN_EXCHANGE");
     return { accessToken: value.access_token, scopes: value.scope.split(" ").filter(Boolean) };
   }
+  async fetchGuilds(accessToken: string): Promise<DiscordOAuthGuild[]> {
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}/users/@me/guilds`, {
+        headers: { authorization: `Bearer ${accessToken}`, accept: "application/json" },
+        signal: AbortSignal.timeout(10_000),
+      });
+    } catch { throw new DiscordOAuthProviderError("GUILD_DISCOVERY"); }
+    if (!response.ok) throw new DiscordOAuthProviderError("GUILD_DISCOVERY");
+    let value: unknown;
+    try { value = await response.json(); } catch { throw new DiscordOAuthProviderError("GUILD_DISCOVERY"); }
+    if (!Array.isArray(value) || value.length > 10_000 || !value.every(isDiscordOAuthGuild)) {
+      throw new DiscordOAuthProviderError("GUILD_DISCOVERY");
+    }
+    const ids = new Set<string>();
+    for (const guild of value) {
+      if (ids.has(guild.id)) throw new DiscordOAuthProviderError("GUILD_DISCOVERY");
+      ids.add(guild.id);
+    }
+    return value;
+  }
+
   async fetchIdentity(accessToken: string): Promise<DiscordOAuthIdentity> {
     let response: Response;
     try {
@@ -64,3 +86,13 @@ export class DiscordOAuthHttpProvider implements DiscordOAuthProvider {
     };
   }
 }
+
+function isDiscordOAuthGuild(value: unknown): value is DiscordOAuthGuild {
+  if (!isRecord(value)) return false;
+  return typeof value.id === "string" && /^\\d{1,32}$/.test(value.id) &&
+    typeof value.name === "string" && value.name.length > 0 && value.name.length <= 100 &&
+    (typeof value.icon === "string" && /^[A-Za-z0-9_]{1,128}$/.test(value.icon) || value.icon === null) &&
+    typeof value.owner === "boolean" &&
+    typeof value.permissions === "string" && /^\\d{1,32}$/.test(value.permissions);
+}
+

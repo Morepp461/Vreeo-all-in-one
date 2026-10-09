@@ -1,10 +1,11 @@
 import type { ApiConfig } from "@vreeo/config";
 export interface DiscordOAuthIdentity { id: string; username: string; global_name?: string | null; avatar?: string | null; locale?: string | null; }
 export interface DiscordOAuthToken { accessToken: string; scopes: string[]; }
+export interface DiscordOAuthGuild { id: string; name: string; icon: string | null; owner: boolean; permissions: string; }
 export interface AuthUserRecord { id: string; discordUserId: string; username: string; displayName: string; locale: string; deletedAt: Date | null; }
 export interface AuthSessionRecord { id: string; userId: string; createdAt: Date; expiresAt: Date; revokedAt: Date | null; lastSeenAt: Date; }
 export interface AuthSessionWithUser { session: AuthSessionRecord; user: AuthUserRecord; }
-export interface CompleteLoginInput { identity: DiscordOAuthIdentity; scopes: string[]; sessionHash: string; sessionExpiresAt: Date; now: Date; }
+export interface CompleteLoginInput { identity: DiscordOAuthIdentity; scopes: string[]; guilds: DiscordOAuthGuild[]; sessionHash: string; sessionExpiresAt: Date; now: Date; }
 export interface AccessibleGuildRecord { id: string; discordGuildId: string; name: string; iconUrl: string; ownerDiscordUserId: string; }
 export interface AuthRepository {
   listAccessibleGuilds(userId: string): Promise<AccessibleGuildRecord[]>;
@@ -20,8 +21,9 @@ export interface DiscordOAuthProvider {
   buildAuthorizationUrl(state: string, codeChallenge?: string): string;
   exchangeCode(code: string, codeVerifier?: string): Promise<DiscordOAuthToken>;
   fetchIdentity(accessToken: string): Promise<DiscordOAuthIdentity>;
+  fetchGuilds(accessToken: string): Promise<DiscordOAuthGuild[]>;
 }
 export interface AuthRouteDependencies { config: ApiConfig; repository: AuthRepository; stateStore: OAuthStateStore; provider: DiscordOAuthProvider | null; }
 export class AuthRepositoryError extends Error {
-  constructor(readonly code: "USER_DEACTIVATED") { super("Authentication is not available for this account."); this.name = "AuthRepositoryError"; }
+  constructor(readonly code: "USER_DEACTIVATED" | "OAUTH_ACCOUNT_CONFLICT") { super("Authentication is not available for this account."); this.name = "AuthRepositoryError"; }
 }

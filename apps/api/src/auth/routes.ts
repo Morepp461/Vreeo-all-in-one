@@ -74,14 +74,19 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Aut
     try {
       const token = await dependencies.provider.exchangeCode(code, codeVerifier);
       const identity = await dependencies.provider.fetchIdentity(token.accessToken);
+      if (!token.scopes.includes("guilds")) {
+        return sendError(reply, request.id, 502, "SERVICE_UNAVAILABLE", "Discord did not grant the required guild access scope.");
+      }
+      const guilds = await dependencies.provider.fetchGuilds(token.accessToken);
       const now = new Date();
       const rawSession = randomBytes(32).toString("base64url");
       const expiresAt = new Date(now.getTime() + config.sessionTtlSeconds * 1_000);
-      await repository.completeLogin({ identity, scopes: token.scopes, sessionHash: sessionHash(rawSession), sessionExpiresAt: expiresAt, now });
+      await repository.completeLogin({ identity, scopes: token.scopes, guilds, sessionHash: sessionHash(rawSession), sessionExpiresAt: expiresAt, now });
       reply.setCookie(config.sessionCookieName, rawSession, { ...cookieOptions(config), maxAge: config.sessionTtlSeconds, expires: expiresAt });
       return reply.redirect(new URL("/", config.appBaseUrl).toString(), 303);
     } catch (error) {
       if (error instanceof AuthRepositoryError && error.code === "USER_DEACTIVATED") return sendError(reply, request.id, 403, "AUTH_INVALID", "Authentication is not available for this account.");
+      if (error instanceof AuthRepositoryError && error.code === "OAUTH_ACCOUNT_CONFLICT") return sendError(reply, request.id, 409, "RESOURCE_CONFLICT", "This Discord identity cannot be linked.");
       request.log.error({ requestId: request.id, errorName: error instanceof Error ? error.name : "UnknownError" }, "Discord OAuth callback failed");
       return sendError(reply, request.id, 502, "SERVICE_UNAVAILABLE", "Discord login could not be completed. Please try again.");
     }

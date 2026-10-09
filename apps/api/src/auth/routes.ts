@@ -27,7 +27,7 @@ function hasExpectedOrigin(request: FastifyRequest, config: ApiConfig): boolean 
   if (typeof origin !== "string") return false;
   try { return new URL(origin).origin === new URL(config.appBaseUrl).origin; } catch { return false; }
 }
-async function resolveSession(request: FastifyRequest, dependencies: AuthRouteDependencies): Promise<AuthSessionWithUser | null> {
+export async function resolveAuthenticatedSession(request: FastifyRequest, dependencies: AuthRouteDependencies): Promise<AuthSessionWithUser | null> {
   const raw = request.cookies[dependencies.config.sessionCookieName];
   if (!raw || raw.length > 256) return null;
   const now = new Date();
@@ -88,7 +88,7 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Aut
   });
   app.get("/api/v1/auth/me", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
-    const current = await resolveSession(request, dependencies);
+    const current = await resolveAuthenticatedSession(request, dependencies);
     if (!current) return sendError(reply, request.id, 401, "AUTH_REQUIRED", "Please sign in to continue.");
     return { data: { id: current.user.id, discordUserId: current.user.discordUserId, username: current.user.username, locale: current.user.locale } };
   });
@@ -102,13 +102,13 @@ export async function registerAuthRoutes(app: FastifyInstance, dependencies: Aut
   });
   app.get("/api/v1/auth/sessions", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
-    const current = await resolveSession(request, dependencies);
+    const current = await resolveAuthenticatedSession(request, dependencies);
     if (!current) return sendError(reply, request.id, 401, "AUTH_REQUIRED", "Please sign in to continue.");
     return { data: (await repository.listSessions(current.user.id, 50)).map((session) => safeSession(session, current.session.id)) };
   });
   app.delete("/api/v1/auth/sessions/:sessionId", async (request, reply) => {
     reply.header("Cache-Control", "no-store");
-    const current = await resolveSession(request, dependencies);
+    const current = await resolveAuthenticatedSession(request, dependencies);
     if (!current) return sendError(reply, request.id, 401, "AUTH_REQUIRED", "Please sign in to continue.");
     if (!hasExpectedOrigin(request, config)) return sendError(reply, request.id, 403, "FORBIDDEN", "The request origin is not allowed.");
     const params = request.params as { sessionId?: unknown };

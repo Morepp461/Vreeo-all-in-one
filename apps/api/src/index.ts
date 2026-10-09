@@ -6,6 +6,7 @@ import { createQueue } from "@vreeo/queue";
 import { checkRedisReady, closeRedisConnection, createRedisConnection } from "@vreeo/redis";
 import { DiscordOAuthHttpProvider } from "./auth/discord-oauth-provider.js";
 import { PrismaAuthRepository } from "./auth/prisma-auth-repository.js";
+import { PrismaGuildAccessRepository } from "./guilds/prisma-guild-access-repository.js";
 import { RedisOAuthStateStore } from "./auth/redis-oauth-state.js";
 import { buildServer } from "./server.js";
 
@@ -16,11 +17,14 @@ const database = createDatabaseClient({ url: config.databaseUrl });
 const redis = createRedisConnection({ url: config.redisUrl, logger });
 const readinessQueue = createQueue("api-readiness", redis);
 const authRepository = new PrismaAuthRepository(database);
+const guildAccessRepository = new PrismaGuildAccessRepository(database);
 const oauthStateStore = new RedisOAuthStateStore(redis);
 const oauthProvider = config.discordOAuth ? new DiscordOAuthHttpProvider(config.discordOAuth) : null;
+const authDependencies = { config, repository: authRepository, stateStore: oauthStateStore, provider: oauthProvider };
 const app = await buildServer({
   loggerOptions, redis,
-  auth: { config, repository: authRepository, stateStore: oauthStateStore, provider: oauthProvider },
+  auth: authDependencies,
+  guilds: { auth: authDependencies, repository: guildAccessRepository },
   readinessChecks: [
     { name: "postgres", check: async () => { await database.$queryRaw`SELECT 1`; } },
     { name: "redis", check: () => checkRedisReady(redis) },

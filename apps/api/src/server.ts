@@ -8,6 +8,8 @@ import Fastify, { type FastifyInstance } from "fastify";
 import type { LoggerOptions } from "pino";
 import { registerAuthRoutes } from "./auth/routes.js";
 import type { AuthRouteDependencies } from "./auth/types.js";
+import { registerGuildRoutes } from "./guilds/routes.js";
+import type { GuildRouteDependencies } from "./guilds/types.js";
 
 export interface ReadinessCheck { name: string; check: () => Promise<void>; }
 export interface BuildServerOptions {
@@ -15,6 +17,7 @@ export interface BuildServerOptions {
   readinessChecks?: ReadinessCheck[];
   redis?: RedisConnection;
   auth?: AuthRouteDependencies;
+  guilds?: GuildRouteDependencies;
 }
 function errorCode(statusCode: number): string {
   switch (statusCode) {
@@ -50,6 +53,7 @@ export async function buildServer(options: BuildServerOptions = {}): Promise<Fas
     }),
   });
   if (options.auth) await registerAuthRoutes(app, options.auth);
+  if (options.guilds) await registerGuildRoutes(app, options.guilds);
   app.setNotFoundHandler((request, reply) => reply.code(404).send({
     error: { code: "NOT_FOUND", message: "The requested resource was not found.", requestId: request.id },
   }));

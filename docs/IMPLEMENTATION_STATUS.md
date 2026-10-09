@@ -14,19 +14,19 @@ This branch builds on `feat/shared-domain-packages`. It is not a production rele
 
 ### Still not implemented
 
-- Live guild discovery and tenant-scoped guild access middleware.
+- Tenant-scoped authorization middleware that validates every guild-scoped mutation; the new guild listing is an access-discovery endpoint only.
 - Database-backed permission/profile and entitlement policy loaders.
 - Command registry/interaction router, domain services, Moderation Warn vertical slice, durable event outbox, and production deployment configuration.
 - OAuth refresh-token persistence/refresh is intentionally absent because the source schema does not define a token storage field. Guild access must not assume OAuth tokens persist beyond callback.
 
 ### Verification
 
-Infrastructure and shared package gates previously passed. The auth/session branch passed CI on `4f47c84191d742315d155000c26600f46e5b76e6`, including build, typecheck, database migrations/schema drift, seed idempotency, and the auth/session route tests. Live Discord OAuth has not been exercised because no real client credentials are configured.
+Infrastructure and shared package gates previously passed. The auth/session branch passed GitHub Actions on `db581629dfa7e23ee7eddd1609d3e3dfee5cb306`, including build, typecheck, database migrations/schema drift, seed idempotency, and auth/session route tests. Live Discord OAuth has not been exercised because no real client credentials are configured. Guild access changes are awaiting CI.
 
 ### Next sequence
 
 1. Verify auth state-cookie binding, callback replay protection, session hash storage, logout CSRF checks, and session listing.
-2. Implement live guild discovery and tenant-scoped guild-context middleware.
+2. Add tenant-scoped guild-context middleware and database-backed permission/profile and entitlement loaders.
 3. Wire permission and entitlement packages to database-backed policy loaders.
 4. Add bot command registry and interaction/event routers.
 5. Implement Moderation Warn end-to-end and expand the remaining MVP features.

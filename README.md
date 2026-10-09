@@ -63,7 +63,7 @@ docs/
 5. Seed the baseline plan records: `pnpm --filter @vreeo/database seed`
 6. Fill in a valid `DISCORD_TOKEN` if running the bot, then use `pnpm dev`.
 
-The API exposes `GET /health` for liveness and `GET /health/ready` for PostgreSQL, Redis, and BullMQ backend readiness. Readiness returns HTTP 503 if any dependency is missing or unavailable. Queue/worker primitives are available, but no business job handlers are registered yet. The bot requires a valid `DISCORD_TOKEN`. Commands, authentication, and dashboard features are not implemented yet.
+The API exposes `GET /health` for liveness and `GET /health/ready` for PostgreSQL, Redis, and BullMQ backend readiness. Readiness returns HTTP 503 if any dependency is missing or unavailable. Discord OAuth login and persistent sessions are implemented; `GET /api/v1/guilds` lists only active bot-connected guilds where the signed-in user is the owner or has Manage Server/Administrator permission in the latest bot-synced member/role snapshot. Guild discovery relies on bot gateway sync and deliberately does not persist OAuth access tokens. Queue/worker primitives are available, but no business job handlers are registered yet. The bot requires a valid `DISCORD_TOKEN`. Discord command/event routing and dashboard features are not implemented yet.
 
 ## Security
 

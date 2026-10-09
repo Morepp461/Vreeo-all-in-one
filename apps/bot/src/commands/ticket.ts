@@ -175,7 +175,7 @@ export const ticketCommand: VreeoCommand = {
           },
           update: {
             config,
-            ...(staffRole ? { defaultStaffRoleId: staffRole.id } : {}),
+            defaultStaffRoleId: staffRole?.id ?? null,
           },
         });
         await writeTicketAudit({
@@ -185,7 +185,7 @@ export const ticketCommand: VreeoCommand = {
           ticketId: guildRecord.id,
           newValue: {
             ticketCategoryId: category.id,
-            staffRoleId: staffRole?.id ?? current?.defaultStaffRoleId ?? null,
+            staffRoleId: staffRole?.id ?? null,
           },
         });
         await interaction.editReply(
@@ -224,7 +224,7 @@ export const ticketCommand: VreeoCommand = {
         );
       }
       const category = await guild.channels.fetch(settings.ticketCategoryId).catch(() => null);
-      if (!category || category.type !== ChannelType.GuildCategory) {
+      if (!category || category.type !== ChannelType.GuildCategory || category.guildId !== guild.id) {
         return replyFailure(
           interaction,
           'The configured ticket category no longer exists. Ask an administrator to run /ticket setup again.',
@@ -429,7 +429,7 @@ export const ticketCommand: VreeoCommand = {
             ? tickets
                 .map(
                   (item) =>
-                    `**#${item.ticketNumber.toString()}** · ${item.status === 'claimed' ? `Claimed by <@${item.claimedByDiscordUserId}>` : 'Open'}\n<@&${settings.staffRoleId ?? guild.id}> <@${item.openerDiscordUserId}> · ${item.subject ?? 'No subject'}\n${item.channelDiscordId ? `<#${item.channelDiscordId}>` : 'Channel pending'}`,
+                    `**#${item.ticketNumber.toString()}** · ${item.status === 'claimed' ? `Claimed by <@${item.claimedByDiscordUserId}>` : 'Open'}\nOpener: <@${item.openerDiscordUserId}> · ${item.subject ?? 'No subject'}\n${item.channelDiscordId ? `<#${item.channelDiscordId}>` : 'Channel pending'}`,
                 )
                 .join('\n\n')
             : 'There are no active tickets.',

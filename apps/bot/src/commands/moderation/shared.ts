@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, Guild } from 'discord.js';
+import type { ChatInputCommandInteraction, Guild, GuildMember } from 'discord.js';
 import { prisma } from '@vreeo/database/client';
 import { syncGuild } from '../../services/guild-sync.js';
 
@@ -117,7 +117,7 @@ export function replyFailure(interaction: ChatInputCommandInteraction, message: 
 
 export async function invokerCanModerateTarget(
   interaction: ChatInputCommandInteraction,
-  target: import('discord.js').GuildMember,
+  target: GuildMember,
 ): Promise<boolean> {
   if (!interaction.guild) return false;
   if (interaction.guild.ownerId === interaction.user.id) return true;

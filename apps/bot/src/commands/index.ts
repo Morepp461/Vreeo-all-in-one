@@ -10,6 +10,7 @@ import { warningsCommand } from './moderation/warnings.js';
 import { helpCommand } from './help.js';
 import { pingCommand } from './ping.js';
 import { pollCommand } from './poll.js';
+import { ticketCommand } from './ticket.js';
 import { serverInfoCommand } from './serverinfo.js';
 import { userInfoCommand } from './userinfo.js';
 
@@ -21,6 +22,7 @@ export const commands: VreeoCommand[] = [
   avatarCommand,
   pollCommand,
   autoModCommand,
+  ticketCommand,
   warnCommand,
   timeoutCommand,
   kickCommand,

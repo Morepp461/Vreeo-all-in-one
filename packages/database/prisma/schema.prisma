@@ -72,6 +72,7 @@ model Guild {
   lockdowns          Lockdown[]
   autoModRules       AutoModRule[]
   tickets            Ticket[]
+  ticketPanels       TicketPanel[]
   entitlements       Entitlement[]
 
   @@index([active])
@@ -319,6 +320,23 @@ model Ticket {
   @@index([guildId, status, createdAt])
   @@index([guildId, openerDiscordUserId, createdAt])
   @@map("tickets")
+}
+
+model TicketPanel {
+  id               String   @id @default(uuid()) @db.Uuid
+  guildId          String   @map("guild_id") @db.Uuid
+  name             String   @db.VarChar(100)
+  channelDiscordId String   @map("channel_discord_id") @db.VarChar(32)
+  messageDiscordId String?  @map("message_discord_id") @db.VarChar(32)
+  config           Json     @default("{}") @db.JsonB
+  enabled          Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  guild            Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, name])
+  @@index([guildId, enabled])
+  @@map("ticket_panels")
 }
 
 model Entitlement {

@@ -42,7 +42,19 @@ describe("environment configuration", () => {
     })).not.toThrow();
   });
 
-  it("allows API-only development without Discord credentials", () => {
-    expect(loadApiConfig({ ...localApiEnvironment, NODE_ENV: "test" }).nodeEnv).toBe("test");
+  it("allows API-only development without Discord OAuth credentials", () => {
+    const config = loadApiConfig({ ...localApiEnvironment, NODE_ENV: "test" });
+    expect(config.nodeEnv).toBe("test");
+    expect(config.discordOAuth).toBeNull();
+    expect(config.sessionCookieName).toBe("vreeo_session");
+  });
+
+  it("requires OAuth settings as a complete set and secure cookies in production", () => {
+    expect(() => loadApiConfig({ ...localApiEnvironment, DISCORD_CLIENT_ID: "client", NODE_ENV: "test" })).toThrow(/must be configured together/);
+    expect(() => loadApiConfig({
+      ...localApiEnvironment, NODE_ENV: "production", DISCORD_CLIENT_ID: "client", DISCORD_CLIENT_SECRET: "secret",
+      DISCORD_REDIRECT_URI: "https://app.example/api/v1/auth/discord/callback", APP_BASE_URL: "https://app.example",
+      SESSION_COOKIE_SECURE: "true",
+    })).not.toThrow();
   });
 });

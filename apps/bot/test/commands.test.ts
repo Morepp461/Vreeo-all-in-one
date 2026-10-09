@@ -16,6 +16,10 @@ describe('slash command registry', () => {
       'userinfo',
       'avatar',
       'poll',
+      'warn',
+      'timeout',
+      'kick',
+      'ban',
     ]);
   });
 

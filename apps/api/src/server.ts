@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import Fastify from 'fastify';
+import Fastify, { type FastifyError } from 'fastify';
 import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -37,7 +37,7 @@ export function buildServer() {
   });
   app.register(authRoutes, { prefix: '/api/v1' });
 
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     const statusCode =
       typeof error.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 600
         ? error.statusCode

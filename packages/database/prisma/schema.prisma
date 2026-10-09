@@ -303,6 +303,7 @@ model Ticket {
   guildId               String    @map("guild_id") @db.Uuid
   ticketNumber          BigInt    @map("ticket_number")
   channelDiscordId      String?   @map("channel_discord_id") @db.VarChar(32)
+  sourceInteractionId   String?   @unique @map("source_interaction_id") @db.VarChar(32)
   openerDiscordUserId   String    @map("opener_discord_user_id") @db.VarChar(32)
   claimedByDiscordUserId String?  @map("claimed_by_discord_user_id") @db.VarChar(32)
   status                String    @default("open") @db.VarChar(30)
